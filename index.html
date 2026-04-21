@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アシスト競輪予想 V1</title>
+    <title>アシストマジック 競輪予想 V1</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -18,7 +18,7 @@
             color: var(--primary-color);
         }
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             background: white;
             padding: 20px;
@@ -44,6 +44,7 @@
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
+            font-size: 14px;
         }
         th, td {
             border: 1px solid #ddd;
@@ -66,6 +67,7 @@
             border: none;
             border-radius: 8px;
             font-size: 18px;
+            font-weight: bold;
             cursor: pointer;
             transition: 0.3s;
         }
@@ -75,19 +77,21 @@
             padding: 15px;
             border-radius: 8px;
             background: #fff;
-            border-left: 5px solid var(--accent-color);
+            border: 2px solid var(--accent-color);
         }
-        .rank-1 { color: #d35400; font-weight: bold; }
+        .rank-1 { color: #e74c3c; font-weight: bold; font-size: 1.2em; }
+        .rank-2 { color: #e67e22; font-weight: bold; }
+        .rank-3 { color: #f1c40f; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>アシスト競輪予想 V1</h1>
+    <h1>アシストマジック 競輪予想 V1</h1>
     
     <div class="setup-section">
         <div>
-            <label>バンクタイプ:</label>
+            <label><strong>バンクタイプ:</strong></label>
             <select id="bank-type">
                 <option value="333">333m (先行有利)</option>
                 <option value="400" selected>400m (標準)</option>
@@ -95,7 +99,7 @@
             </select>
         </div>
         <div>
-            <label>ライン構成 (例: 123-45-6789):</label>
+            <label><strong>ライン構成 (例: 123-45-6789):</strong></label>
             <input type="text" id="line-info" placeholder="123-45-6789">
         </div>
     </div>
@@ -106,7 +110,8 @@
                 <th>車番</th>
                 <th>選手名</th>
                 <th>脚質</th>
-                <th>直近勝率(%)</th>
+                <th>競走得点</th>
+                <th>勝率(%)</th>
             </tr>
         </thead>
         <tbody>
@@ -116,7 +121,7 @@
     <button class="btn-calc" onclick="calculateForecast()">予想スコアを算出</button>
 
     <div id="result" style="display:none;">
-        <h2>予想結果 (期待値スコア)</h2>
+        <h2>予想結果 (推奨買い目)</h2>
         <div id="result-content"></div>
     </div>
 </div>
@@ -127,16 +132,17 @@
     for (let i = 1; i <= 9; i++) {
         tbody.innerHTML += `
             <tr>
-                <td>${i}</td>
+                <td><strong>${i}</strong></td>
                 <td><input type="text" id="name-${i}" placeholder="選手${i}"></td>
                 <td>
                     <select id="style-${i}">
-                        <option value="逃">逃げ</option>
-                        <option value="両">両</option>
-                        <option value="追">追込み</option>
+                        <option value="逃">逃</option>
+                        <option value="両" selected>両</option>
+                        <option value="追">追</option>
                     </select>
                 </td>
-                <td><input type="number" id="winrate-${i}" value="10"></td>
+                <td><input type="number" id="score-${i}" value="70.0" step="0.1"></td>
+                <td><input type="number" id="winrate-${i}" value="10" step="0.1"></td>
             </tr>
         `;
     }
@@ -146,27 +152,59 @@
         const lineStr = document.getElementById('line-info').value;
         let scores = [];
 
+        // ライン位置の解析
+        const lines = lineStr.split('-');
+        let runnerRoles = {}; // 車番ごとの役割補正
+        lines.forEach(line => {
+            const runners = line.split('');
+            runners.forEach((num, index) => {
+                if (index === 0) runnerRoles[num] = 1.05; // 先頭補正
+                else if (index === 1) runnerRoles[num] = 1.1; // 番手補正（最も有利とされる）
+                else runnerRoles[num] = 1.0;
+            });
+        });
+
         for (let i = 1; i <= 9; i++) {
-            let baseScore = parseFloat(document.getElementById(`winrate-${i}`).value) || 0;
-            let style = document.getElementById(`style-${style}`).value; // 修正箇所あり
+            let rating = parseFloat(document.getElementById(`score-${i}`).value) || 0;
+            let winRate = parseFloat(document.getElementById(`winrate-${i}`).value) || 0;
+            let style = document.getElementById(`style-${i}`).value;
+            
+            // 基本スコア計算 (競走得点重視 + 勝率)
+            let baseScore = (rating * 0.8) + (winRate * 0.2);
 
-            // バンクと脚質の相性ロジック
-            if (bank === "333" && style === "逃") baseScore *= 1.2;
-            if (bank === "500" && style === "追") baseScore *= 1.2;
+            // バンクと脚質の相性補正
+            if (bank === "333" && style === "逃") baseScore *= 1.1;
+            if (bank === "500" && style === "追") baseScore *= 1.1;
 
-            // ライン位置の簡易判定（先頭か番手かなど）
-            // ここでは簡易的に勝率ベースでスコア化
-            scores.push({ num: i, name: document.getElementById(`name-${i}`).value || `選手${i}`, score: baseScore });
+            // ライン位置による補正を適用
+            if (runnerRoles[i]) {
+                baseScore *= runnerRoles[i];
+            }
+
+            scores.push({ 
+                num: i, 
+                name: document.getElementById(`name-${i}`).value || `選手${i}`, 
+                total: baseScore 
+            });
         }
 
         // スコア順に並び替え
-        scores.sort((a, b) => b.score - a.score);
+        scores.sort((a, b) => b.total - a.total);
 
         const resultContent = document.getElementById('result-content');
-        resultContent.innerHTML = "<ol>" + scores.slice(0, 5).map((s, idx) => 
-            `<li class="rank-${idx+1}">${s.num}番車 ${s.name} (スコア: ${s.score.toFixed(1)})</li>`
-        ).join('') + "</ol>";
-        
+        let html = "<h3>期待値ランキング</h3><ol>";
+        scores.slice(0, 5).forEach((s, idx) => {
+            html += `<li class="rank-${idx+1}">${s.num}番車 ${s.name} (算出スコア: ${s.total.toFixed(2)})</li>`;
+        });
+        html += "</ol>";
+
+        // 簡易的な3連単フォーカス生成
+        const top3 = scores.slice(0, 3).map(s => s.num);
+        html += `<div style="background:#f9f9f9; padding:10px; border-radius:5px; margin-top:10px;">
+                    <strong>推奨3連単:</strong> ${top3[0]} ↔ ${top3[1]} → ${top3[2]}
+                 </div>`;
+
+        resultContent.innerHTML = html;
         document.getElementById('result').style.display = 'block';
     }
 </script>
