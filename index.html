@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アシスト競輪 V3.0 - yottiエディション</title>
+    <title>アシスト競輪 V3.1 - yottiエディション</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f2f5; padding: 20px; color: #333; }
-        .container { max-width: 950px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .container { max-width: 980px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
         h2 { color: #2d5a27; border-bottom: 3px solid #28a745; padding-bottom: 10px; margin-top: 0; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
         th, td { border: 1px solid #dee2e6; padding: 12px 8px; text-align: center; }
@@ -25,8 +25,8 @@
         <thead>
             <tr>
                 <th style="width: 8%;">車番</th>
-                <th style="width: 25%;">選手名</th>
-                <th style="width: 15%;">脚質</th>
+                <th style="width: 28%;">選手名</th>
+                <th style="width: 12%;">脚質</th>
                 <th style="width: 18%;">競走得点</th>
                 <th style="width: 12%;">勝率</th>
                 <th style="width: 22%;">予想スコア</th>
@@ -72,61 +72,59 @@ function handlePaste(e) {
     const data = (e.clipboardData || window.clipboardData).getData('text');
     const tableRows = document.querySelectorAll('#keirin-table tbody tr');
     
-    // 全データから空白・改行で区切って配列化
+    // 改行と空白ですべての塊に分解
     const items = data.split(/\s+/).filter(it => it.trim() !== "");
     let rowIndex = 0;
 
     for (let i = 0; i < items.length; i++) {
         if (rowIndex >= 9) break;
 
-        // 【脚質】スラッシュを含む項目（例：「/逃」）を探す
-        if (items[i].includes('/')) {
+        // 「脚質（/逃、/追、/両）」が含まれる項目を探す
+        if (items[i].includes('/') && /[逃両追]/.test(items[i])) {
             const ins = tableRows[rowIndex].querySelectorAll('input, select');
             
-            // 1. 脚質：スラッシュの後の1文字をセット
-            const sChar = items[i].slice(-1);
+            // 1. 脚質を決定
+            const styleChar = items[i].split('/').pop().charAt(0);
             Array.from(ins[1].options).forEach((opt, idx) => {
-                if (opt.value === sChar) ins[1].selectedIndex = idx;
+                if (opt.value === styleChar) ins[1].selectedIndex = idx;
             });
 
-            // 2. 選手名：脚質の「前」にある項目をそのまま拾う
-            // 名前が「名字 名前」と分かれている可能性を考慮し、2項目を遡る
-            if (i > 0) {
-                // 脚質の1つ前の項目（名前、あるいは「名字（追加）」）
-                const namePart = items[i-1];
-                
-                // もし名前が2項目に分かれている場合（例：「佐藤」 「慎太郎」 /追）
-                if (i > 1 && /^\d+$/.test(items[i-2]) === false && items[i-2].length >= 2) {
-                    ins[0].value = items[i-2] + ' ' + namePart;
-                } else {
-                    ins[0].value = namePart; // 名字だけ、あるいは名字と名前が1項目にまとまっている場合
+            // 2. 選手名を決定（重要：都道府県のさらに前にある、純粋な漢字の塊を探す）
+            // 画像4の構造： [名前] [名前] [(追加)] [都道府県]/[級班]/[脚質]
+            let nameParts = [];
+            for (let j = i - 1; j >= 0; j--) {
+                // スラッシュを含まず、数字でもない、2文字以上の漢字やカナの塊を名前のパーツとする
+                if (!items[j].includes('/') && isNaN(items[j]) && items[j].length >= 2) {
+                    // 「神奈川」などの都道府県を除外するため、名前に含まれがちな「(追加)」などは無視してさらに遡る
+                    if (!items[j].includes('(')) {
+                        nameParts.unshift(items[j]);
+                    }
                 }
+                // 名前は大抵2項目（姓・名）なので、2つ見つかったら止める。あるいは車番（数字）にぶつかったら止める
+                if (nameParts.length >= 2 || (j > 0 && !isNaN(items[j-1]))) break;
+            }
+            // 最後に都道府県（名標の直前の項目）を除去してセット
+            if (nameParts.length > 1) nameParts.pop(); 
+            ins[0].value = nameParts.join(' ');
+
+            // 3. 競走得点と勝率（脚質より後の数字を順番に拾う）
+            let nums = [];
+            for (let k = i + 1; k < i + 15 && k < items.length; k++) {
+                if (!isNaN(items[k])) nums.push(items[k]);
             }
 
-            // 3. 数値（競走得点・勝率）：脚質より後の数字を順番に拾う
-            let foundNums = [];
-            for (let k = i + 1; k < i + 10 && k < items.length; k++) {
-                if (!isNaN(items[k])) foundNums.push(items[k]);
-                if (foundNums.length >= 5) break; // 必要以上に探さない
-            }
-
-            // 競走得点：小数点付きを最優先
-            const scoreVal = foundNums.find(n => n.includes('.')) || foundNums.find(n => parseFloat(n) > 60);
+            const scoreVal = nums.find(n => n.includes('.')) || nums.find(n => parseFloat(n) > 60);
             if (scoreVal) {
                 ins[2].value = parseFloat(scoreVal).toFixed(2);
-                
-                // 勝率：得点より後にある数字
-                const sIdx = foundNums.indexOf(scoreVal);
-                const winVal = foundNums.slice(sIdx + 1).find(n => parseFloat(n) <= 100);
+                const sIdx = nums.indexOf(scoreVal);
+                const winVal = nums.slice(sIdx + 1).find(n => parseFloat(n) <= 100);
                 if (winVal) ins[3].value = winVal;
             }
 
             rowIndex++;
-            i += 1; // 次の選手へ
         }
     }
 
-    // 貼り付け後に自動計算
     setTimeout(calculateScore, 100);
     e.preventDefault();
 }
