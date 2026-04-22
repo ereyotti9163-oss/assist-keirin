@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アシスト競輪 V3.8 - yottiエディション</title>
+    <title>アシスト競輪 V4.1 - yotti専用</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f2f5; padding: 20px; color: #333; }
         .container { max-width: 980px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
@@ -19,7 +19,7 @@
 <body onpaste="handlePaste(event)">
 
 <div class="container">
-    <h2>アシスト競輪：データ解析・予想スコア</h2>
+    <h2>アシスト競輪 V4.1：数値整合版</h2>
     <table id="keirin-table">
         <thead>
             <tr>
@@ -53,7 +53,7 @@
             </script>
         </tbody>
     </table>
-    <button class="btn-calc" onclick="calculateScore()">スコアを更新</button>
+    <button class="btn-calc" onclick="calculateScore()">スコア算出</button>
 </div>
 
 <script>
@@ -62,7 +62,7 @@ function calculateScore() {
     rows.forEach((row, i) => {
         const p = parseFloat(row.querySelector('.p-point').value) || 0;
         const w = parseFloat(row.querySelector('.p-win').value) || 0;
-        // yottiさん独自の計算式：競走得点 + (勝率 × 0.5)
+        // yottiさんの計算式：得点 + (勝率 * 0.5)
         const s = p + (w * 0.5);
         document.getElementById(`score-${i+1}`).innerText = p > 0 ? s.toFixed(2) : "-";
     });
@@ -71,13 +71,15 @@ function calculateScore() {
 function handlePaste(e) {
     const data = (e.clipboardData || window.clipboardData).getData('text');
     const tableRows = document.querySelectorAll('#keirin-table tbody tr');
+    
+    // 改行や空白でデータを切り分け、空の要素を削除
     const items = data.split(/\s+/).filter(it => it.trim() !== "");
     let rowIndex = 0;
 
     for (let i = 0; i < items.length; i++) {
         if (rowIndex >= 9) break;
 
-        // 起点：脚質（例：神奈川/A1/逃）
+        // 起点：脚質（例：/逃、/追、/両）
         if (items[i].includes('/') && /[逃両追]$/.test(items[i])) {
             const ins = tableRows[rowIndex].querySelectorAll('input, select');
             
@@ -87,36 +89,42 @@ function handlePaste(e) {
                 if (opt.value === styleChar) ins[1].selectedIndex = idx;
             });
 
-            // 2. 選手名（逆引き）
+            // 2. 選手名（脚質の左側にあるはずの文字列を結合）
             let nameParts = [];
             for (let j = i - 1; j >= 0; j--) {
-                if (!isNaN(items[j])) break;
+                if (!isNaN(items[j])) break; // 数字（車番や得点）にぶつかったら止める
                 if (!items[j].includes('/') && !items[j].includes('(')) nameParts.unshift(items[j]);
             }
-            if (nameParts.length > 1) nameParts.pop();
+            if (nameParts.length > 1) nameParts.pop(); // 都道府県があれば削除
             ins[0].value = nameParts.join(' ');
 
-            // 3. 数値抽出（脚質キーワード以降の数字を徹底分析）
-            let searchScope = items.slice(i + 1, i + 25);
+            // 3. 数値の仕分け（ここが重要）
+            // 脚質より後にある数字を最大15個スキャン
+            let futureItems = items.slice(i + 1, i + 16);
             
-            // 競走得点：小数点を含み、かつ70〜130の範囲にある数値を優先
-            let scoreIdx = searchScope.findIndex(n => n.includes('.') && parseFloat(n) >= 70 && parseFloat(n) <= 130);
-            
-            if (scoreIdx !== -1) {
-                ins[2].value = parseFloat(searchScope[scoreIdx]).toFixed(2); // 例：89.41
+            // 【ルール1】小数点を含む数値を探し、それを「競走得点」とする
+            let foundPoint = "";
+            let pointIdx = -1;
+            for(let k=0; k<futureItems.length; k++){
+                if(futureItems[k].includes('.') && !isNaN(futureItems[k])){
+                    foundPoint = futureItems[k];
+                    pointIdx = k;
+                    break;
+                }
+            }
 
-                // 勝率：keirin.jpの表構造（出走表）では、得点の「直後」または「3つ後」に1着率（勝率）がくる
-                // 正解の「50」や「44」を拾うため、得点の後の「整数」を探索
-                let winVal = 0;
-                for (let k = scoreIdx + 1; k < searchScope.length; k++) {
-                    let val = parseFloat(searchScope[k]);
-                    // 100以下の整数であり、かつ得点との距離が近いものを勝率とする
-                    if (!isNaN(val) && val <= 100 && !searchScope[k].includes('.')) {
-                        winVal = val;
-                        break; 
+            if (foundPoint !== "") {
+                ins[2].value = parseFloat(foundPoint).toFixed(2);
+
+                // 【ルール2】見つかった得点の「直後」にある整数を「勝率」とする
+                // keirin.jpの構造上、得点のすぐ右にあるのが1着率（勝率）です
+                for(let m = pointIdx + 1; m < futureItems.length; m++){
+                    let val = futureItems[m];
+                    if(!isNaN(val) && !val.includes('.')){
+                        ins[3].value = val;
+                        break;
                     }
                 }
-                ins[3].value = winVal;
             }
             rowIndex++;
         }
