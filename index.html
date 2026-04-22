@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アシスト競輪 V2.9 - yottiエディション</title>
+    <title>アシスト競輪 V3.0 - yottiエディション</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f2f5; padding: 20px; color: #333; }
         .container { max-width: 950px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
@@ -79,25 +79,35 @@ function handlePaste(e) {
     for (let i = 0; i < items.length; i++) {
         if (rowIndex >= 9) break;
 
-        // 脚質の判定（スラッシュを含む、または「逃・両・追」のみの項目）
-        if (items[i].includes('/') || /^[逃両追]$/.test(items[i])) {
+        // 【脚質】スラッシュを含む項目（例：「/逃」）を探す
+        if (items[i].includes('/')) {
             const ins = tableRows[rowIndex].querySelectorAll('input, select');
             
-            // 1. 脚質：末尾の1文字を取得
+            // 1. 脚質：スラッシュの後の1文字をセット
             const sChar = items[i].slice(-1);
             Array.from(ins[1].options).forEach((opt, idx) => {
                 if (opt.value === sChar) ins[1].selectedIndex = idx;
             });
 
-            // 2. 選手名：脚質の直前にある項目をそのまま入れる
+            // 2. 選手名：脚質の「前」にある項目をそのまま拾う
+            // 名前が「名字 名前」と分かれている可能性を考慮し、2項目を遡る
             if (i > 0) {
-                ins[0].value = items[i-1];
+                // 脚質の1つ前の項目（名前、あるいは「名字（追加）」）
+                const namePart = items[i-1];
+                
+                // もし名前が2項目に分かれている場合（例：「佐藤」 「慎太郎」 /追）
+                if (i > 1 && /^\d+$/.test(items[i-2]) === false && items[i-2].length >= 2) {
+                    ins[0].value = items[i-2] + ' ' + namePart;
+                } else {
+                    ins[0].value = namePart; // 名字だけ、あるいは名字と名前が1項目にまとまっている場合
+                }
             }
 
             // 3. 数値（競走得点・勝率）：脚質より後の数字を順番に拾う
             let foundNums = [];
             for (let k = i + 1; k < i + 10 && k < items.length; k++) {
                 if (!isNaN(items[k])) foundNums.push(items[k]);
+                if (foundNums.length >= 5) break; // 必要以上に探さない
             }
 
             // 競走得点：小数点付きを最優先
@@ -116,6 +126,7 @@ function handlePaste(e) {
         }
     }
 
+    // 貼り付け後に自動計算
     setTimeout(calculateScore, 100);
     e.preventDefault();
 }
