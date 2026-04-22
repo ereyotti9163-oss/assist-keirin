@@ -3,108 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アシスト競輪アップデート</title>
+    <title>アシスト競輪 V2 - yottiエディション</title>
     <style>
-        body { font-family: sans-serif; background-color: #f0f4f8; padding: 20px; }
-        table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-        th { background-color: #f8f9fa; }
-        input, select { width: 90%; padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
-        .header-title { font-weight: bold; margin-bottom: 10px; display: block; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f2f5; padding: 20px; color: #333; }
+        .container { max-width: 950px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        h2 { color: #2d5a27; border-bottom: 3px solid #28a745; padding-bottom: 10px; margin-top: 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
+        th, td { border: 1px solid #dee2e6; padding: 12px 8px; text-align: center; }
+        th { background-color: #f1f8f1; color: #495057; font-size: 14px; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; box-sizing: border-box; font-size: 15px; }
+        input:focus { border-color: #28a745; outline: none; box-shadow: 0 0 0 0.2rem rgba(40,167,69,0.25); }
+        .score-cell { font-weight: bold; color: #e44d26; font-size: 1.2em; background-color: #fff9f8; }
+        .btn-calc { width: 100%; padding: 18px; margin-top: 25px; background: linear-gradient(135deg, #28a745 0%, #218838 100%); color: white; border: none; border-radius: 10px; font-size: 20px; cursor: pointer; font-weight: bold; transition: transform 0.1s; }
+        .btn-calc:active { transform: scale(0.98); }
+        .footer-note { margin-top: 15px; font-size: 12px; color: #6c757d; text-align: right; }
     </style>
 </head>
 <body>
 
-<span class="header-title">アシスト競輪：初期画面</span>
-<table id="keirin-table">
-    <thead>
-        <tr>
-            <th>車番</th>
-            <th>選手名</th>
-            <th>脚質</th>
-            <th>競走得点</th>
-            <th>勝率(%)</th>
-        </tr>
-    </thead>
-    <tbody>
-        <script>
-            for (let i = 1; i <= 9; i++) {
-                document.write(`
-                    <tr>
-                        <td><b>${i}</b></td>
-                        <td><input type="text" placeholder="選手${i}"></td>
-                        <td>
-                            <select>
-                                <option value="">選択</option>
-                                <option value="逃">逃</option>
-                                <option value="両">両</option>
-                                <option value="追">追</option>
-                            </select>
-                        </td>
-                        <td><input type="number" step="0.01" value="0"></td>
-                        <td><input type="number" value="0"></td>
-                    </tr>
-                `);
-            }
-        </script>
-    </tbody>
-</table>
+<div class="container">
+    <h2>アシスト競輪：データ更新・予想算出</h2>
+    <table id="keirin-table">
+        <thead>
+            <tr>
+                <th style="width: 8%;">車番</th>
+                <th style="width: 25%;">選手名</th>
+                <th style="width: 15%;">脚質</th>
+                <th style="width: 18%;">競走得点</th>
+                <th style="width: 12%;">勝率</th>
+                <th style="width: 22%;">予想スコア</th>
+            </tr>
+        </thead>
+        <tbody>
+            <script>
+                for (let i = 1; i <= 9; i++) {
+                    document.write(`
+                        <tr>
+                            <td><b>${i}</b></td>
+                            <td><input type="text" placeholder="選手${i}" class="p-name"></td>
+                            <td>
+                                <select class="p-style">
+                                    <option value="">選択</option>
+                                    <option value="逃">逃</option>
+                                    <option value="両">両</option>
+                                    <option value="追">追</option>
+                                </select>
+                            </td>
+                            <td><input type="number" step="0.01" value="0" class="p-point"></td>
+                            <td><input type="number" value="0" class="p-win"></td>
+                            <td class="score-cell" id="score-${i}">-</td>
+                        </tr>
+                    `);
+                }
+            </script>
+        </tbody>
+    </table>
+
+    <button class="btn-calc" onclick="calculateScore()">予想スコアを算出</button>
+    <div class="footer-note">※表のどこかをクリックしてCtrl+VでKeirin.jpのデータを貼り付け</div>
+</div>
 
 <script>
+// 貼り付け解析処理
 document.addEventListener('paste', (event) => {
-    // クリップボードからテキストを取得
     const pasteData = (event.clipboardData || window.clipboardData).getData('text');
-    
-    // 行ごとに分割（実際のデータに合わせて解析）
-    // 選手名、得点などが混ざった塊を正規表現で各車番に分ける
-    const rows = pasteData.trim().split(/\s+(?=\d\s+[^\d])/); 
-    // ※「数字 + スペース + 漢字」が出現する場所を車番の区切りとみなす
-    
+    // 車番の区切りを「数字 + スペース + 漢字」のパターンで分割
+    const rows = pasteData.trim().split(/\s+(?=\d\s+[^\w\s\x00-\x7F])/); 
     const tableRows = document.querySelectorAll('#keirin-table tbody tr');
 
     rows.forEach((rowText, index) => {
         if (index >= 9) return;
-
-        const tableRow = tableRows[index];
-        const inputs = tableRow.querySelectorAll('input, select');
-
-        // スペースで細かく分割
-        // 例: ["将人", "福", "島/A1A1/追", "87.04", "0", "0", "5", "3", "0"]
+        const inputs = tableRows[index].querySelectorAll('input, select');
         const items = rowText.trim().split(/\s+/);
 
-        // データの並び順に基づいて流し込み
         if (items.length >= 4) {
-            // 1. 選手名 (苗字と名前を結合)
-            // もし先頭に車番の数字が混じっていたら除外して結合
+            // 1. 選手名の抽出（車番を飛ばして苗字と名前を結合）
             let nameStart = isNaN(items[0]) ? 0 : 1;
             inputs[0].value = items[nameStart] + (items[nameStart + 1] ? ' ' + items[nameStart + 1] : '');
 
-            // 2. 脚質 (「島/A1A1/追」のような文字列から最後の1文字を抽出)
+            // 2. 脚質の抽出（「/」を含む塊から最後の1文字を取る）
             const detailInfo = items.find(item => item.includes('/'));
             if (detailInfo) {
                 const styleChar = detailInfo.slice(-1);
-                const select = inputs[1];
-                for (let i = 0; i < select.options.length; i++) {
-                    if (select.options[i].text === styleChar) {
-                        select.selectedIndex = i;
-                        break;
-                    }
-                }
+                Array.from(inputs[1].options).forEach((opt, i) => {
+                    if (opt.text === styleChar) inputs[1].selectedIndex = i;
+                });
             }
 
-            // 3. 競走得点 (小数点を含む数値を探す)
-            const score = items.find(item => item.includes('.'));
-            if (score) inputs[2].value = score;
-
-            // 4. 勝率 (一番最後の数値を勝率として入れる)
+            // 3. 競走得点の抽出（小数点を含む数値）
+            const scoreItem = items.find(item => item.includes('.') && !isNaN(item));
+            if (scoreItem) inputs[2].value = scoreItem;
+            
+            // 4. 勝率の抽出（一番最後にある数値を採用）
             const lastVal = items[items.length - 1];
             if (!isNaN(lastVal)) inputs[3].value = lastVal;
         }
     });
-
-    // 貼り付け後、デフォルトの挙動（文字が入力欄にそのまま出るの）を防ぐ
-    event.preventDefault();
+    event.preventDefault(); // デフォルトの貼り付けを防止
 });
+
+// 予想計算ロジック
+function calculateScore() {
+    for (let i = 1; i <= 9; i++) {
+        const row = document.querySelectorAll('#keirin-table tbody tr')[i-1];
+        const point = parseFloat(row.querySelector('.p-point').value) || 0;
+        const win = parseFloat(row.querySelector('.p-win').value) || 0;
+        
+        // yottiさん流の計算式（仮：得点＋勝率の重み付け）
+        // 1位狙いのためのシンプルな算出例です
+        const finalScore = (point * 1.0) + (win * 0.5);
+        
+        const display = document.getElementById(`score-${i}`);
+        if (point > 0) {
+            display.innerText = finalScore.toFixed(2);
+        } else {
+            display.innerText = "-";
+        }
+    }
+}
 </script>
 
 </body>
