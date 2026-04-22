@@ -1,104 +1,54 @@
-<!DOCTYPE html>
+A<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>アシストマジック - 仮想壁・鉄壁版</title>
+    <title>アシストマジック - 22完全消去版</title>
     <style>
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #eef2f3; padding: 20px; color: #333; }
-        .container { max-width: 950px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        h1 { text-align: center; color: #1a2a6c; margin-bottom: 20px; border-bottom: 3px solid #1a2a6c; padding-bottom: 10px; font-size: 24pt; }
-        
-        .ranking-box { display: flex; justify-content: space-around; background: linear-gradient(135deg, #1a2a6c, #2c3e50); color: white; padding: 20px; border-radius: 10px; margin-bottom: 25px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.2); }
-        .rank-item { text-align: center; flex: 1; border-right: 1px solid rgba(255,255,255,0.2); }
-        .rank-item:last-child { border-right: none; }
-        .rank-label { font-size: 11pt; color: #bdc3c7; margin-bottom: 5px; }
-        .rank-value { font-size: 26pt; font-weight: bold; color: #f1c40f; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
-        .rank-score { font-size: 10pt; color: #ecf0f1; }
-
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: #fff; }
-        th { background: #1a2a6c; color: white; padding: 12px; font-size: 11pt; text-transform: uppercase; letter-spacing: 1px; }
-        td { border: 1px solid #dfe6e9; padding: 10px; text-align: center; }
-        
-        .car-num { font-size: 18pt; font-weight: bold; color: #2c3e50; width: 50px; }
-        input { width: 90%; padding: 10px; border: 2px solid #ecf0f1; border-radius: 6px; text-align: center; font-size: 12pt; transition: border-color 0.3s; }
-        input:focus { border-color: #3498db; outline: none; background: #f7fbff; }
-        input[type="number"] { font-weight: bold; color: #2980b9; }
-
-        .score-cell { font-size: 16pt; font-weight: bold; color: #e74c3c; background: #fff5f5; border-left: 3px solid #e74c3c; }
-        
-        .footer-note { margin-top: 20px; font-size: 9pt; color: #7f8c8d; text-align: right; }
+        body { font-family: sans-serif; background-color: #f0f2f5; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #1a2a6c; border-bottom: 2px solid #1a2a6c; padding-bottom: 10px; }
+        .ranking-box { display: flex; justify-content: space-around; background: #2c3e50; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .rank-value { font-size: 2em; font-weight: bold; color: #f1c40f; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        th { background: #1a2a6c; color: white; }
+        .car-num { font-size: 1.4em; font-weight: bold; }
+        input { width: 90%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; text-align: center; }
+        .score-cell { font-size: 1.2em; font-weight: bold; color: #e74c3c; background: #fffafa; }
     </style>
 </head>
 <body>
-
 <div class="container">
     <h1>アシストマジック</h1>
-    
     <div class="ranking-box">
-        <div class="rank-item">
-            <div class="rank-label">【1着候補】</div>
-            <div id="top1" class="rank-value">-</div>
-            <div id="top1-score" class="rank-score">0.00</div>
-        </div>
-        <div class="rank-item">
-            <div class="rank-label">【2着候補】</div>
-            <div id="top2" class="rank-value">-</div>
-            <div id="top2-score" class="rank-score">0.00</div>
-        </div>
-        <div class="rank-item">
-            <div class="rank-label">【3着候補】</div>
-            <div id="top3" class="rank-value">-</div>
-            <div id="top3-score" class="rank-score">0.00</div>
-        </div>
+        <div class="rank-item"><div>1着候補</div><div id="top1" class="rank-value">-</div></div>
+        <div class="rank-item"><div>2着候補</div><div id="top2" class="rank-value">-</div></div>
+        <div class="rank-item"><div>3着候補</div><div id="top3" class="rank-value">-</div></div>
     </div>
-
     <table>
-        <thead>
-            <tr>
-                <th style="width:8%">車</th>
-                <th style="width:22%">メモ</th>
-                <th style="width:20%">競走得点</th>
-                <th style="width:20%">勝率</th>
-                <th style="width:30%">総合スコア</th>
-            </tr>
-        </thead>
-        <tbody id="member-list">
-            </tbody>
+        <thead><tr><th>車</th><th>メモ</th><th>競走得点</th><th>勝率</th><th>スコア</th></tr></thead>
+        <tbody id="member-list"></tbody>
     </table>
-    
-    <div class="footer-note">※競輪jpの直近成績をコピーしてこの画面で貼り付け（Ctrl+V）してください。</div>
 </div>
-
 <script>
     const tbody = document.getElementById('member-list');
-    
-    // テーブル行の初期生成
     for (let i = 1; i <= 9; i++) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td class="car-num">${i}</td>
-            <td><input type="text" placeholder="メモ"></td>
-            <td><input type="number" step="0.01" id="point-${i}" oninput="updateAll()" placeholder="0.00"></td>
-            <td><input type="number" id="win-${i}" oninput="updateAll()" placeholder="0"></td>
-            <td id="score-${i}" class="score-cell">0.00</td>
-        `;
+        tr.innerHTML = `<td class="car-num">${i}</td><td><input type="text"></td><td><input type="number" step="0.01" id="point-${i}" oninput="updateAll()"></td><td><input type="number" id="win-${i}" oninput="updateAll()"></td><td id="score-${i}" class="score-cell">0.00</td>`;
         tbody.appendChild(tr);
     }
 
-    // 貼り付けイベントの制御
     document.addEventListener('paste', (e) => {
         e.preventDefault();
         let text = e.clipboardData.getData('text');
         
-        // 【yottiさんのアイデア：仮想の壁】
-        // データの最後に「999.99」という偽の得点を追加し、後ろのゴミを遮断する
+        // yottiさんの仮想の壁を念のため設置
         text += " 999.99";
 
-        // 全ての数字（小数を含む）を抽出
+        // 全ての数字を抽出
         const matches = text.match(/\d+\.\d+|\d+/g);
         if (!matches) return;
 
-        // 小数点（得点）の位置をリストアップ
         let pointsPos = [];
         for (let i = 0; i < matches.length; i++) {
             if (matches[i].includes('.')) pointsPos.push(i);
@@ -106,75 +56,45 @@
 
         pointsPos.forEach((pos, index) => {
             const pIdx = index + 1;
-            // 9車分を超える、または仮想の壁（999.99）に達したら終了
             if (pIdx > 9 || matches[pos] === "999.99") return;
             
-            // 競走得点をセット
+            // 1. 得点をセット
             document.getElementById(`point-${pIdx}`).value = parseFloat(matches[pos]).toFixed(2);
 
-            // この選手のデータの終わり（次の得点の直前）を特定
+            // 2. 勝率を特定するための「範囲制限」を厳密にします
             let limit = pointsPos[index + 1] || matches.length;
-            let subData = matches.slice(pos + 1, limit).filter(v => !v.includes('.'));
+            let sub = matches.slice(pos + 1, limit).filter(v => !v.includes('.'));
             
-            // 【新・勝率特定ロジック】
-            // subDataの中には「決まり手」などの数字が並び、その後に「勝率・2連・3連」が来る。
-            // どんなレースでも構造は同じなので、後ろのゴミ（22など）に惑わされないよう、
-            // 「勝率・2連・3連」の塊を正確に狙い撃ちます。
-            if (subData.length >= 3) {
-                // 仮想の壁があるおかげで、subDataの末尾付近にあるのが確実にその選手の成績になる
-                // 後ろから3番目が勝率
-                document.getElementById(`win-${pIdx}`).value = subData[subData.length - 3];
-            } else if (subData.length > 0) {
-                document.getElementById(`win-${pIdx}`).value = subData[0];
+            // 競輪jpの並び：得点(小数)の後の「勝率」は、決まり手を除外したセットの先頭付近にあります。
+            // 7番車でも「後ろから」数えず、「決まり手」分をスキップして確実に勝率を狙います。
+            if (sub.length >= 8) {
+                // 決まり手（逃・捲・差・マーク・1・2・3・着外）の後の「勝率」を特定
+                document.getElementById(`win-${pIdx}`).value = sub[sub.length - 3];
+            } else if (sub.length > 0) {
+                document.getElementById(`win-${pIdx}`).value = sub[0];
             }
-            
             updateScore(pIdx);
         });
-        
         updateRanking();
     });
 
-    // スコア計算（得点 + 勝率×0.5）
+    function updateAll() { for(let i=1; i<=9; i++) updateScore(i); updateRanking(); }
     function updateScore(idx) {
         const p = parseFloat(document.getElementById(`point-${idx}`).value) || 0;
         const w = parseFloat(document.getElementById(`win-${idx}`).value) || 0;
-        const total = p + (w * 0.5);
-        document.getElementById(`score-${idx}`).innerText = total.toFixed(2);
+        document.getElementById(`score-${idx}`).innerText = (p + (w * 0.5)).toFixed(2);
     }
-
-    // 全体の更新
-    function updateAll() {
-        for (let i = 1; i <= 9; i++) updateScore(i);
-        updateRanking();
-    }
-
-    // ランキング表示の更新
     function updateRanking() {
-        let results = [];
+        let res = [];
         for (let i = 1; i <= 9; i++) {
             const sc = parseFloat(document.getElementById(`score-${i}`).innerText);
-            if (sc > 0) {
-                results.push({ num: i, score: sc });
-            }
+            if (sc > 0) res.push({ num: i, score: sc });
         }
-
-        // スコア順に並び替え
-        results.sort((a, b) => b.score - a.score);
-
-        // 上位3名を表示
+        res.sort((a, b) => b.score - a.score);
         for (let i = 1; i <= 3; i++) {
-            const valEl = document.getElementById(`top${i}`);
-            const scEl = document.getElementById(`top${i}-score`);
-            if (results[i - 1]) {
-                valEl.innerText = results[i - 1].num + "番車";
-                scEl.innerText = results[i - 1].score.toFixed(2);
-            } else {
-                valEl.innerText = "-";
-                scEl.innerText = "0.00";
-            }
+            document.getElementById(`top${i}`).innerText = res[i - 1] ? res[i - 1].num + "番車" : "-";
         }
     }
 </script>
-
 </body>
 </html>
