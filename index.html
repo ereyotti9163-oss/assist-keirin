@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アシスト競輪 V2.5 - yottiエディション</title>
+    <title>アシスト競輪 V2.7 - yottiエディション</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f2f5; padding: 20px; color: #333; }
         .container { max-width: 950px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
@@ -55,7 +55,6 @@
         </tbody>
     </table>
     <button class="btn-calc" onclick="calculateScore()">予想スコアを算出</button>
-    <div class="footer-note">※画面のどこでも Ctrl+V で貼り付けできます</div>
 </div>
 
 <script>
@@ -73,50 +72,55 @@ function handlePaste(e) {
     const data = (e.clipboardData || window.clipboardData).getData('text');
     const tableRows = document.querySelectorAll('#keirin-table tbody tr');
     
-    // 1. まずは「/」を含む行を見つけ出し、それを9人分に分ける
-    const segments = data.split(/(?=[^\s]+[\/][^\s]+)/); 
+    // すべての単語を配列にする（改行も空白もまとめて区切る）
+    const items = data.trim().split(/\s+/);
     let rowIndex = 0;
 
-    segments.forEach((seg) => {
-        const items = seg.trim().split(/\s+/);
-        const sIdx = items.findIndex(it => it.includes('/'));
-        if (sIdx === -1 || rowIndex >= 9) return;
+    for (let i = 0; i < items.length; i++) {
+        if (rowIndex >= 9) break;
 
-        const ins = tableRows[rowIndex].querySelectorAll('input, select');
-
-        // 【選手名】
-        // 脚質記号の直前の漢字。もし名前が切れていたらその前も結合。
-        const namePart = items.slice(Math.max(0, sIdx - 1), sIdx).filter(n => isNaN(n));
-        ins[0].value = namePart.join(' ');
-
-        // 【脚質】
-        const sChar = items[sIdx].slice(-1);
-        Array.from(ins[1].options).forEach((opt, idx) => {
-            if (opt.text === sChar) ins[1].selectedIndex = idx;
-        });
-
-        // 【競走得点・勝率】の仕分け
-        const numsAfterStyle = items.slice(sIdx + 1);
-        
-        // ① 小数点がある数字を最優先で競走得点にする（年齢 62 等を無視するため）
-        let scoreVal = numsAfterStyle.find(n => n.includes('.'));
-        
-        // ② もし小数点付きがなければ、60以上の数字を探す
-        if (!scoreVal) {
-            scoreVal = numsAfterStyle.find(n => !isNaN(n) && parseFloat(n) >= 60);
-        }
-
-        if (scoreVal) {
-            ins[2].value = parseFloat(scoreVal).toFixed(2);
+        // 「脚質（/逃、/追、/両など）」を起点にする
+        if (items[i].includes('/') || /^[逃両追]$/.test(items[i])) {
+            const ins = tableRows[rowIndex].querySelectorAll('input, select');
             
-            // 【勝率】得点として使った数字より後ろにあり、かつ60以下の数字
-            const scoreIdx = numsAfterStyle.indexOf(scoreVal);
-            const winVal = numsAfterStyle.slice(scoreIdx + 1).find(n => !isNaN(n) && parseFloat(n) <= 60);
-            if (winVal) ins[3].value = winVal;
-        }
+            // 1. 脚質：スラッシュの後の文字、またはその文字自体
+            let sChar = items[i].replace('/', '').slice(0, 1);
+            Array.from(ins[1].options).forEach((opt, idx) => {
+                if (opt.text === sChar) ins[1].selectedIndex = idx;
+            });
 
-        rowIndex++;
-    });
+            // 2. 選手名：脚質の「前」にある、数字ではない塊を探す
+            for (let j = i - 1; j >= 0; j--) {
+                if (isNaN(items[j]) && items[j].length >= 2) {
+                    ins[0].value = items[j];
+                    break;
+                }
+            }
+
+            // 3. 得点と勝率：脚質の「後」にある数字を探す
+            let foundNumbers = [];
+            for (let k = i + 1; k < i + 10 && k < items.length; k++) {
+                if (!isNaN(items[k]) && items[k] !== "") {
+                    foundNumbers.push(items[k]);
+                }
+                if (foundNumbers.length >= 5) break; // 必要以上に探さない
+            }
+
+            // 競走得点（通常は小数点付き、または一番大きい数字）
+            const scoreVal = foundNumbers.find(n => n.includes('.')) || foundNumbers.find(n => parseFloat(n) > 60);
+            if (scoreVal) {
+                ins[2].value = parseFloat(scoreVal).toFixed(2);
+                // 勝率は得点より後ろにある比較的小さい数字
+                const scoreIdx = foundNumbers.indexOf(scoreVal);
+                const winVal = foundNumbers.slice(scoreIdx + 1).find(n => parseFloat(n) <= 100);
+                if (winVal) ins[3].value = winVal;
+            }
+
+            rowIndex++;
+            // 今見つけたデータの分、インデックスを少し進める
+            i += 2; 
+        }
+    }
 
     setTimeout(calculateScore, 150);
     e.preventDefault();
