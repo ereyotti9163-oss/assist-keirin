@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アシスト競輪 V3.1 - yottiエディション</title>
+    <title>アシスト競輪 V3.4 - yottiエディション</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f2f5; padding: 20px; color: #333; }
         .container { max-width: 980px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
@@ -14,7 +14,6 @@
         input, select { width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; box-sizing: border-box; font-size: 15px; background-color: #fff; }
         .score-cell { font-weight: bold; color: #e44d26; font-size: 1.2em; background-color: #fff9f8; }
         .btn-calc { width: 100%; padding: 18px; margin-top: 25px; background: linear-gradient(135deg, #28a745 0%, #218838 100%); color: white; border: none; border-radius: 10px; font-size: 20px; cursor: pointer; font-weight: bold; }
-        b { color: #218838; }
     </style>
 </head>
 <body onpaste="handlePaste(event)">
@@ -71,60 +70,49 @@ function calculateScore() {
 function handlePaste(e) {
     const data = (e.clipboardData || window.clipboardData).getData('text');
     const tableRows = document.querySelectorAll('#keirin-table tbody tr');
-    
-    // 改行と空白ですべての塊に分解
     const items = data.split(/\s+/).filter(it => it.trim() !== "");
     let rowIndex = 0;
 
     for (let i = 0; i < items.length; i++) {
         if (rowIndex >= 9) break;
 
-        // 「脚質（/逃、/追、/両）」が含まれる項目を探す
-        if (items[i].includes('/') && /[逃両追]/.test(items[i])) {
+        // 脚質が含まれる項目（例：神奈川/A1/逃）を起点にする
+        if (items[i].includes('/') && /[逃両追]$/.test(items[i])) {
             const ins = tableRows[rowIndex].querySelectorAll('input, select');
             
-            // 1. 脚質を決定
-            const styleChar = items[i].split('/').pop().charAt(0);
+            // 1. 脚質
+            const styleChar = items[i].slice(-1);
             Array.from(ins[1].options).forEach((opt, idx) => {
                 if (opt.value === styleChar) ins[1].selectedIndex = idx;
             });
 
-            // 2. 選手名を決定（重要：都道府県のさらに前にある、純粋な漢字の塊を探す）
-            // 画像4の構造： [名前] [名前] [(追加)] [都道府県]/[級班]/[脚質]
+            // 2. 選手名（脚質から遡って、車番の直後までを拾う）
             let nameParts = [];
             for (let j = i - 1; j >= 0; j--) {
-                // スラッシュを含まず、数字でもない、2文字以上の漢字やカナの塊を名前のパーツとする
-                if (!items[j].includes('/') && isNaN(items[j]) && items[j].length >= 2) {
-                    // 「神奈川」などの都道府県を除外するため、名前に含まれがちな「(追加)」などは無視してさらに遡る
-                    if (!items[j].includes('(')) {
-                        nameParts.unshift(items[j]);
-                    }
+                if (!isNaN(items[j])) break; // 車番の数字に当たったら停止
+                if (!items[j].includes('/') && !items[j].includes('(')) {
+                    nameParts.unshift(items[j]);
                 }
-                // 名前は大抵2項目（姓・名）なので、2つ見つかったら止める。あるいは車番（数字）にぶつかったら止める
-                if (nameParts.length >= 2 || (j > 0 && !isNaN(items[j-1]))) break;
             }
-            // 最後に都道府県（名標の直前の項目）を除去してセット
-            if (nameParts.length > 1) nameParts.pop(); 
+            if (nameParts.length > 1) nameParts.pop(); // 都道府県を除去
             ins[0].value = nameParts.join(' ');
 
-            // 3. 競走得点と勝率（脚質より後の数字を順番に拾う）
-            let nums = [];
-            for (let k = i + 1; k < i + 15 && k < items.length; k++) {
-                if (!isNaN(items[k])) nums.push(items[k]);
-            }
-
-            const scoreVal = nums.find(n => n.includes('.')) || nums.find(n => parseFloat(n) > 60);
+            // 3. 競走得点（脚質の直後にある小数点付きの数値を優先）
+            // 4. 勝率（競走得点のさらに後ろにある数値）
+            let nextItems = items.slice(i + 1, i + 8);
+            let scoreVal = nextItems.find(n => n.includes('.'));
+            
             if (scoreVal) {
                 ins[2].value = parseFloat(scoreVal).toFixed(2);
-                const sIdx = nums.indexOf(scoreVal);
-                const winVal = nums.slice(sIdx + 1).find(n => parseFloat(n) <= 100);
+                let sIdx = nextItems.indexOf(scoreVal);
+                // 勝率は得点の後ろにある数字を順番に探す
+                let winVal = nextItems.slice(sIdx + 1).find(n => !isNaN(n) && parseFloat(n) <= 100);
                 if (winVal) ins[3].value = winVal;
             }
 
             rowIndex++;
         }
     }
-
     setTimeout(calculateScore, 100);
     e.preventDefault();
 }
