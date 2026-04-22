@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アシスト競輪 V4.7 - yotti専用</title>
+    <title>アシスト競輪 V5.0 - yotti専用</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f2f5; padding: 20px; color: #333; }
         .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
@@ -20,7 +20,7 @@
 <body onpaste="handlePaste(event)">
 
 <div class="container">
-    <h2>アシスト競輪 V4.7：完全動作版</h2>
+    <h2>アシスト競輪 V5.0：項目分解・決定版</h2>
     <table id="keirin-table">
         <thead>
             <tr>
@@ -54,16 +54,17 @@
             </script>
         </tbody>
     </table>
-    <button class="btn-calc" onclick="calculateScore()">数値を計算する</button>
+    <button class="btn-calc" onclick="calculateScore()">計算を更新</button>
 </div>
 
 <script>
 function calculateScore() {
     const rows = document.querySelectorAll('#keirin-table tbody tr');
     rows.forEach((row, i) => {
-        const p = parseFloat(row.querySelector('.p-point').value) || 0;
-        const w = parseFloat(row.querySelector('.p-win').value) || 0;
-        // yottiさん計算式
+        const pInput = row.querySelector('.p-point').value.replace(/[^0-9.]/g, '');
+        const wInput = row.querySelector('.p-win').value.replace(/[^0-9.]/g, '');
+        const p = parseFloat(pInput) || 0;
+        const w = parseFloat(wInput) || 0;
         const s = p + (w * 0.5);
         document.getElementById(`score-${i+1}`).innerText = p > 0 ? s.toFixed(2) : "-";
     });
@@ -71,54 +72,59 @@ function calculateScore() {
 
 function handlePaste(e) {
     const rawData = (e.clipboardData || window.clipboardData).getData('text');
-    if (!rawData) return;
-
     const tableRows = document.querySelectorAll('#keirin-table tbody tr');
-    // 全ての空白・改行を整理
-    const items = rawData.split(/[\s\t\n\r]+/).filter(it => it.trim() !== "");
     
+    // 全ての空白・改行を整理して配列化
+    const items = rawData.split(/\s+/).filter(it => it.trim() !== "");
     let rowIndex = 0;
+
     for (let i = 0; i < items.length; i++) {
         if (rowIndex >= 9) break;
 
-        // 【起点】スラッシュを含む脚質データ（例: 神奈川/A1/逃）
+        // 起点：脚質（例：神奈川/A1/逃、/逃 など）
         if (items[i].includes('/') && /[逃両追]$/.test(items[i])) {
-            const rowFields = tableRows[rowIndex].querySelectorAll('input, select');
+            const inputs = tableRows[rowIndex].querySelectorAll('input, select');
             
             // 1. 脚質
-            rowFields[1].value = items[i].slice(-1);
+            inputs[1].value = items[i].slice(-1);
 
-            // 2. 選手名（県名を削るロジック）
+            // 2. 選手名（出身地1文字を分離）
             if (i > 0) {
-                let name = items[i-1];
-                // 3文字以上の漢字の場合、最後の1文字（県名）を削る
-                if (name.length >= 3) {
-                    name = name.substring(0, name.length - 1);
+                let nameWithArea = items[i-1];
+                // yottiさんの指摘通り、後ろの1文字（出身地）をカットして名前にする
+                if (nameWithArea.length >= 3) {
+                    inputs[0].value = nameWithArea.slice(0, -1);
+                } else {
+                    inputs[0].value = nameWithArea;
                 }
-                rowFields[0].value = name;
             }
 
-            // 3. 数値の抽出（小数点を目印にする）
+            // 3. 数値の抽出（競走得点と勝率）
+            let pointVal = "";
+            let winVal = "";
             let foundPoint = false;
+
             for (let k = i + 1; k < i + 15 && k < items.length; k++) {
-                let val = items[k];
-                // 小数点がある数字＝競走得点
-                if (!foundPoint && val.includes('.') && !isNaN(val)) {
-                    rowFields[2].value = val;
+                // 小数点があれば競走得点
+                if (!foundPoint && items[k].includes('.') && !isNaN(items[k])) {
+                    pointVal = items[k];
                     foundPoint = true;
-                    // 勝率はその2つ後にあることが多い（keirin.jp仕様）
-                    if (items[k+2] && !isNaN(items[k+2]) && !items[k+2].includes('.')) {
-                        rowFields[3].value = items[k+2];
+                    // 勝率は、得点から数えて3つ目（1着率）の位置にあることが多い
+                    if (items[k+3] && !isNaN(items[k+3])) {
+                        winVal = items[k+3];
                     } else if (items[k+1] && !isNaN(items[k+1])) {
-                        rowFields[3].value = items[k+1];
+                        winVal = items[k+1];
                     }
                     break;
                 }
             }
+            inputs[2].value = pointVal;
+            inputs[3].value = winVal;
+
             rowIndex++;
         }
     }
-    setTimeout(calculateScore, 200);
+    setTimeout(calculateScore, 150);
     e.preventDefault();
 }
 </script>
