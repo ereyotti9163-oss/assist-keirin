@@ -2,55 +2,82 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>アシスト競輪 - 完璧版</title>
+    <title>アシスト競輪 - 順位表示版</title>
     <style>
         body { font-family: sans-serif; background-color: #f0f2f5; padding: 20px; }
-        .container { max-width: 850px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        h1 { text-align: center; color: #1a2a6c; margin-bottom: 20px; border-bottom: 2px solid #1a2a6c; padding-bottom: 10px; }
-        .info { background: #fff3cd; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-size: 0.9em; border-left: 5px solid #ffa000; }
-        table { width: 100%; border-collapse: collapse; background: white; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: center; }
-        th { background: #2c3e50; color: white; }
-        .car-num { font-size: 1.5em; font-weight: bold; color: #1a2a6c; }
-        input { width: 95%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1.1em; text-align: center; box-sizing: border-box; }
-        input:focus { background: #eef2ff; border-color: #4a90e2; outline: none; }
-        .score-cell { font-size: 1.4em; font-weight: bold; color: #e74c3c; background: #fff5f5; }
-        .footer { margin-top: 15px; font-size: 0.8em; color: #666; text-align: right; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #1a2a6c; margin-bottom: 10px; border-bottom: 2px solid #1a2a6c; padding-bottom: 10px; }
+        
+        /* ランキング表示エリア */
+        .ranking-box { 
+            display: flex; justify-content: space-around; background: #2c3e50; 
+            color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center;
+        }
+        .rank-item { flex: 1; }
+        .rank-label { font-size: 0.9em; color: #bdc3c7; }
+        .rank-value { font-size: 2em; font-weight: bold; color: #f1c40f; }
+        .rank-score { font-size: 0.8em; }
+
+        .info { background: #fff3cd; padding: 10px; border-radius: 6px; margin-bottom: 20px; font-size: 0.85em; border-left: 5px solid #ffa000; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        th { background: #1a2a6c; color: white; font-size: 0.9em; }
+        .car-num { font-size: 1.4em; font-weight: bold; }
+        input { width: 95%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; text-align: center; font-size: 1em; }
+        .score-cell { font-size: 1.2em; font-weight: bold; color: #e74c3c; background: #fffafa; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>アシスト競輪</h1>
-    <div class="info">
-        <strong>【yotti専用・最終調整版】</strong><br>
-        1番上の間違いも、一番下の「22」になる現象も対策済みです。<br>
-        keirin.jpの表をガバッとコピーして <strong>Ctrl + V</strong> で貼り付けてください。
+
+    <div class="ranking-box">
+        <div class="rank-item">
+            <div class="rank-label">【1着候補】</div>
+            <div id="top1" class="rank-value">-</div>
+            <div id="top1-score" class="rank-score">0.00</div>
+        </div>
+        <div class="rank-item">
+            <div class="rank-label">【2着候補】</div>
+            <div id="top2" class="rank-value">-</div>
+            <div id="top2-score" class="rank-score">0.00</div>
+        </div>
+        <div class="rank-item">
+            <div class="rank-label">【3着候補】</div>
+            <div id="top3" class="rank-value">-</div>
+            <div id="top3-score" class="rank-score">0.00</div>
+        </div>
     </div>
+
+    <div class="info">
+        Ctrl + V で貼り付け。スコア上位3名が自動で上に表示されます。
+    </div>
+
     <table>
         <thead>
             <tr>
-                <th style="width: 10%;">車番</th>
-                <th style="width: 30%;">メモ (選手名など)</th>
+                <th style="width: 8%;">車</th>
+                <th style="width: 32%;">メモ</th>
                 <th style="width: 20%;">競走得点</th>
-                <th style="width: 20%;">勝率(1着率)</th>
-                <th style="width: 20%;">予想スコア</th>
+                <th style="width: 20%;">勝率</th>
+                <th style="width: 20%;">スコア</th>
             </tr>
         </thead>
         <tbody id="member-list"></tbody>
     </table>
-    <div class="footer">※計算式: 競走得点 + (勝率 × 0.5)</div>
 </div>
 
 <script>
+    // 9車分生成
     const tbody = document.getElementById('member-list');
     for (let i = 1; i <= 9; i++) {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td class="car-num">${i}</td>
-            <td><input type="text" id="name-${i}" placeholder="任意入力"></td>
-            <td><input type="number" step="0.01" id="point-${i}" placeholder="0.00" oninput="recalc(${i})"></td>
-            <td><input type="number" step="1" id="win-${i}" placeholder="0" oninput="recalc(${i})"></td>
+            <td><input type="text" id="name-${i}"></td>
+            <td><input type="number" step="0.01" id="point-${i}" oninput="updateAll()"></td>
+            <td><input type="number" id="win-${i}" oninput="updateAll()"></td>
             <td id="score-${i}" class="score-cell">0.00</td>
         `;
         tbody.appendChild(tr);
@@ -59,7 +86,6 @@
     document.addEventListener('paste', (e) => {
         e.preventDefault();
         const text = e.clipboardData.getData('text');
-        // 数字のみを厳密に分割
         const matches = text.match(/\d+\.\d+|\d+/g);
         if (!matches) return;
 
@@ -71,33 +97,52 @@
         scorePositions.forEach((pos, index) => {
             const playerIdx = index + 1;
             if (playerIdx > 9) return;
-
-            // 1. 競走得点
             document.getElementById(`point-${playerIdx}`).value = parseFloat(matches[pos]).toFixed(2);
-
-            // 2. 勝率抽出の精密化
             let searchEnd = (scorePositions[index + 1]) ? scorePositions[index + 1] : matches.length;
             let dataChunk = matches.slice(pos + 1, searchEnd);
-            
-            // 塊の中から「整数のみ」を抽出
             let integers = dataChunk.filter(v => !v.includes('.'));
-            
             if (integers.length >= 3) {
-                // 勝率・2連対率・3連対率の順で並んでいるはずなので
-                // 3連(最後)、2連(最後から2番目)、勝率(最後から3番目)を確実に特定
                 document.getElementById(`win-${playerIdx}`).value = integers[integers.length - 3];
-            } else if (integers.length > 0) {
-                document.getElementById(`win-${playerIdx}`).value = integers[0];
             }
-
-            recalc(playerIdx);
+            updateScore(playerIdx);
         });
+        updateRanking();
     });
 
-    function recalc(idx) {
+    function updateAll() {
+        for(let i=1; i<=9; i++) updateScore(i);
+        updateRanking();
+    }
+
+    function updateScore(idx) {
         const p = parseFloat(document.getElementById(`point-${idx}`).value) || 0;
         const w = parseFloat(document.getElementById(`win-${idx}`).value) || 0;
         document.getElementById(`score-${idx}`).innerText = (p + (w * 0.5)).toFixed(2);
+    }
+
+    // 順位を計算して表示する
+    function updateRanking() {
+        let results = [];
+        for (let i = 1; i <= 9; i++) {
+            const sc = parseFloat(document.getElementById(`score-${i}`).innerText);
+            if (sc > 0) results.push({ num: i, score: sc });
+        }
+
+        // スコア順に並び替え
+        results.sort((a, b) => b.score - a.score);
+
+        // 上位3名を表示
+        for (let i = 1; i <= 3; i++) {
+            const elVal = document.getElementById(`top${i}`);
+            const elScore = document.getElementById(`top${i}-score`);
+            if (results[i - 1]) {
+                elVal.innerText = results[i - 1].num + "番車";
+                elScore.innerText = results[i - 1].score.toFixed(2);
+            } else {
+                elVal.innerText = "-";
+                elScore.innerText = "0.00";
+            }
+        }
     }
 </script>
 </body>
