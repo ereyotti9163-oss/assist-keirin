@@ -2,99 +2,221 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>アシスト競輪 - 完結版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>アシスト競輪 V9.0 - 抽出精度特化版</title>
     <style>
-        body { font-family: sans-serif; background-color: #f0f2f5; padding: 20px; }
-        .container { max-width: 900px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        h1 { text-align: center; color: #1a2a6c; margin-bottom: 10px; border-bottom: 2px solid #1a2a6c; padding-bottom: 10px; }
-        .ranking-box { display: flex; justify-content: space-around; background: #2c3e50; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
-        .rank-item { flex: 1; }
-        .rank-label { font-size: 0.9em; color: #bdc3c7; }
-        .rank-value { font-size: 2em; font-weight: bold; color: #f1c40f; }
-        .rank-score { font-size: 0.8em; }
-        .info { background: #fff3cd; padding: 10px; border-radius: 6px; margin-bottom: 20px; font-size: 0.85em; border-left: 5px solid #ffa000; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
-        th { background: #1a2a6c; color: white; font-size: 0.9em; }
-        .car-num { font-size: 1.4em; font-weight: bold; }
-        input { width: 95%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; text-align: center; font-size: 1em; }
-        .score-cell { font-size: 1.2em; font-weight: bold; color: #e74c3c; background: #fffafa; }
+        :root {
+            --keirin-blue: #1a2a6c;
+            --keirin-gold: #f1c40f;
+            --keirin-bg: #f0f2f5;
+        }
+        body { font-family: "Helvetica Neue", Arial, sans-serif; background-color: var(--keirin-bg); padding: 20px; color: #333; margin: 0; }
+        .container { max-width: 950px; margin: 0 auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
+        
+        h1 { text-align: center; color: var(--keirin-blue); margin-bottom: 20px; font-size: 1.8em; border-bottom: 3px solid var(--keirin-blue); padding-bottom: 10px; }
+        
+        /* ランキング表示 */
+        .ranking-box { display: flex; justify-content: space-around; background: #2c3e50; color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: center; }
+        .rank-item { flex: 1; border-right: 1px solid #455a64; }
+        .rank-item:last-child { border-right: none; }
+        .rank-label { font-size: 0.85em; color: #bdc3c7; margin-bottom: 5px; }
+        .rank-value { font-size: 1.8em; font-weight: bold; color: var(--keirin-gold); }
+        .rank-score { font-size: 0.9em; opacity: 0.9; }
+
+        .info-alert { background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 0.9em; border-left: 6px solid #ffa000; line-height: 1.5; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background: var(--keirin-blue); color: white; padding: 12px 5px; font-size: 0.9em; border: 1px solid #ddd; }
+        td { border: 1px solid #ddd; padding: 8px 4px; text-align: center; }
+        
+        /* 車番スタイル */
+        .car-1 { border-left: 5px solid #ffffff; background: #fff; }
+        .car-2 { border-left: 5px solid #333333; background: #f9f9f9; }
+        .car-3 { border-left: 5px solid #e74c3c; background: #fff; }
+        .car-4 { border-left: 5px solid #3498db; background: #f9f9f9; }
+        .car-5 { border-left: 5px solid #f1c40f; background: #fff; }
+        .car-6 { border-left: 5px solid #2ecc71; background: #f9f9f9; }
+        .car-7 { border-left: 5px solid #e67e22; background: #fff; }
+        .car-8 { border-left: 5px solid #95a5a6; background: #f9f9f9; }
+        .car-9 { border-left: 5px solid #9b59b6; background: #fff; }
+
+        input { width: 90%; padding: 10px 5px; border: 1px solid #ccc; border-radius: 5px; text-align: center; font-size: 1.1em; font-weight: bold; }
+        input:focus { border-color: var(--keirin-blue); outline: none; background: #fffde7; }
+        
+        .score-cell { font-size: 1.3em; font-weight: bold; color: #e74c3c; background: #fff8f8 !important; }
+        
+        .reset-btn { display: block; width: 150px; margin: 20px 0 0 auto; padding: 10px; background: #95a5a6; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .reset-btn:hover { background: #7f8c8d; }
     </style>
 </head>
 <body>
+
 <div class="container">
-    <h1>アシスト競輪</h1>
+    <h1>アシスト競輪 V9.0</h1>
+
     <div class="ranking-box">
-        <div class="rank-item"><div class="rank-label">【1着候補】</div><div id="top1" class="rank-value">-</div><div id="top1-score" class="rank-score">0.00</div></div>
-        <div class="rank-item"><div class="rank-label">【2着候補】</div><div id="top2" class="rank-value">-</div><div id="top2-score" class="rank-score">0.00</div></div>
-        <div class="rank-item"><div class="rank-label">【3着候補】</div><div id="top3" class="rank-value">-</div><div id="top3-score" class="rank-score">0.00</div></div>
+        <div class="rank-item">
+            <div class="rank-label">【1着候補】</div>
+            <div id="top1" class="rank-value">-</div>
+            <div id="top1-score" class="rank-score">0.00</div>
+        </div>
+        <div class="rank-item">
+            <div class="rank-label">【2着候補】</div>
+            <div id="top2" class="rank-value">-</div>
+            <div id="top2-score" class="rank-score">0.00</div>
+        </div>
+        <div class="rank-item">
+            <div class="rank-label">【3着候補】</div>
+            <div id="top3" class="rank-value">-</div>
+            <div id="top3-score" class="rank-score">0.00</div>
+        </div>
     </div>
-    <div class="info"><strong>【隣の数字は一切無視】</strong> コピーしたデータを貼り付ければ、勝率だけを確実に特定します。</div>
+
+    <div class="info-alert">
+        <strong>【使い方】</strong> keirin.jpの出走表をコピーして、この画面上のどこでも「貼り付け（Ctrl+V）」してください。<br>
+        「競走得点」を基準に、その行の最後から3番目にある数値を「勝率」として正確に抽出します。
+    </div>
+
     <table>
-        <thead><tr><th>車</th><th>メモ</th><th>競走得点</th><th>勝率</th><th>スコア</th></tr></thead>
-        <tbody id="member-list"></tbody>
+        <thead>
+            <tr>
+                <th style="width: 8%;">車番</th>
+                <th style="width: 30%;">選手名</th>
+                <th style="width: 18%;">競走得点</th>
+                <th style="width: 18%;">勝率</th>
+                <th style="width: 26%;">スコア</th>
+            </tr>
+        </thead>
+        <tbody id="member-list">
+            <!-- 1〜9車分生成 -->
+        </tbody>
     </table>
+
+    <button class="reset-btn" onclick="location.reload()">データを全クリア</button>
 </div>
+
 <script>
+    // 初期テーブル生成
     const tbody = document.getElementById('member-list');
     for (let i = 1; i <= 9; i++) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td class="car-num">${i}</td><td><input type="text" id="name-${i}"></td><td><input type="number" step="0.01" id="point-${i}" oninput="updateAll()"></td><td><input type="number" id="win-${i}" oninput="updateAll()"></td><td id="score-${i}" class="score-cell">0.00</td>`;
+        tr.className = `car-${i}`;
+        tr.innerHTML = `
+            <td style="font-size:1.4em; font-weight:bold;">${i}</td>
+            <td><input type="text" id="name-${i}" placeholder="選手名"></td>
+            <td><input type="number" step="0.01" id="point-${i}" oninput="updateAll()" placeholder="0.00"></td>
+            <td><input type="number" id="win-${i}" oninput="updateAll()" placeholder="0"></td>
+            <td id="score-${i}" class="score-cell">0.00</td>
+        `;
         tbody.appendChild(tr);
     }
 
+    // 貼り付けイベント
     document.addEventListener('paste', (e) => {
+        // 入力フォームにフォーカスがある場合は通常の貼り付けを優先させない
+        if (e.target.tagName === 'INPUT') return;
+
         e.preventDefault();
         const text = e.clipboardData.getData('text');
+        
+        // 全体の数値を抽出
+        const allTokens = text.split(/\s+/);
+        
+        let playerIndex = 1;
+
+        // 選手名抽出（「/」を含むトークンの直前を名前として扱う）
+        for (let i = 0; i < allTokens.length; i++) {
+            if (allTokens[i].includes('/') && playerIndex <= 9) {
+                // 名前候補は「/」の1つ前、または2つ前（姓名が分かれている場合）
+                let rawName = allTokens[i-1];
+                if (rawName && !rawName.match(/[0-9]/)) {
+                    // 名前末尾1文字（出身地）を削除
+                    document.getElementById(`name-${playerIndex}`).value = rawName.slice(0, -1);
+                    playerIndex++;
+                }
+            }
+        }
+
+        // 数値抽出（小数点を持つ競走得点を起点にする）
         const matches = text.match(/\d+\.\d+|\d+/g);
         if (!matches) return;
 
-        let scores = [];
-        for (let i = 0; i < matches.length; i++) if (matches[i].includes('.')) scores.push(i);
+        // 小数点（競走得点）の位置を特定
+        let decimalPositions = [];
+        matches.forEach((val, idx) => {
+            if (val.includes('.')) decimalPositions.push(idx);
+        });
 
-        scores.forEach((pos, index) => {
+        // 各選手ごとに数値を振り分け
+        decimalPositions.forEach((pos, index) => {
             const pIdx = index + 1;
             if (pIdx > 9) return;
 
-            // 1. 競走得点を入力
+            // 1. 競走得点
             document.getElementById(`point-${pIdx}`).value = parseFloat(matches[pos]).toFixed(2);
 
-            // 2. 勝率抽出（お尻から逆算して隣の数字を捨てる）
-            let limit = scores[index + 1] || matches.length;
-            let ints = matches.slice(pos + 1, limit).filter(v => !v.includes('.'));
-            
-            // 競輪jpの「直近成績」は最後尾から【3連対率・2連対率・勝率】の順。
-            // 末尾から3番目を指定することで、隣の「8」や遠くの「22」を無視します。
-            if (ints.length >= 3) {
-                document.getElementById(`win-${pIdx}`).value = ints[ints.length - 3];
-            } else if (ints.length > 0) {
-                document.getElementById(`win-${pIdx}`).value = ints[0];
+            // 2. 勝率（次の小数点までの間の整数群の、後ろから3番目）
+            let endPos = decimalPositions[index + 1] || matches.length;
+            let integersBetween = [];
+            for (let j = pos + 1; j < endPos; j++) {
+                if (!matches[j].includes('.')) {
+                    integersBetween.push(matches[j]);
+                }
             }
+
+            // keirin.jp「直近成績」：[勝率][2連対率][3連対率] の順に並ぶ
+            // つまり、後ろから数えて3つ目が「勝率」
+            if (integersBetween.length >= 3) {
+                document.getElementById(`win-${pIdx}`).value = integersBetween[integersBetween.length - 3];
+            } else if (integersBetween.length > 0) {
+                // 万が一数が足りない場合は最初の数値を代入
+                document.getElementById(`win-${pIdx}`).value = integersBetween[0];
+            }
+            
             updateScore(pIdx);
         });
         updateRanking();
     });
 
-    function updateAll() { for(let i=1; i<=9; i++) updateScore(i); updateRanking(); }
+    function updateAll() {
+        for (let i = 1; i <= 9; i++) updateScore(i);
+        updateRanking();
+    }
+
     function updateScore(idx) {
         const p = parseFloat(document.getElementById(`point-${idx}`).value) || 0;
         const w = parseFloat(document.getElementById(`win-${idx}`).value) || 0;
-        document.getElementById(`score-${idx}`).innerText = (p + (w * 0.5)).toFixed(2);
+        const score = p + (w * 0.5);
+        document.getElementById(`score-${idx}`).innerText = score.toFixed(2);
     }
+
     function updateRanking() {
         let res = [];
         for (let i = 1; i <= 9; i++) {
             const sc = parseFloat(document.getElementById(`score-${i}`).innerText);
-            if (sc > 0) res.push({ num: i, score: sc });
+            const name = document.getElementById(`name-${i}`).value || i + "番車";
+            if (sc > 0) {
+                res.push({ name: name, num: i, score: sc });
+            }
         }
+
+        // スコア順にソート
         res.sort((a, b) => b.score - a.score);
+
+        // 上位3枠を更新
         for (let i = 1; i <= 3; i++) {
-            const val = document.getElementById(`top${i}`);
-            const sc = document.getElementById(`top${i}-score`);
-            if (res[i - 1]) { val.innerText = res[i - 1].num + "番車"; sc.innerText = res[i - 1].score.toFixed(2); }
-            else { val.innerText = "-"; sc.innerText = "0.00"; }
+            const valEl = document.getElementById(`top${i}`);
+            const scEl = document.getElementById(`top${i}-score`);
+            if (res[i - 1]) {
+                valEl.innerText = res[i - 1].num + "番車";
+                scEl.innerText = res[i - 1].score.toFixed(2);
+            } else {
+                valEl.innerText = "-";
+                scEl.innerText = "0.00";
+            }
         }
     }
 </script>
+
 </body>
 </html>
