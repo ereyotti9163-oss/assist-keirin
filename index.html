@@ -3,140 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アシスト競輪 V8.0 - 最終確定版</title>
+    <title>アシスト競輪 V8.0 - 最終修正版</title>
     <style>
-        :root {
-            --keirin-green: #2e7d32;
-            --keirin-light-green: #e8f5e9;
-            --danger-red: #d32f2f;
-        }
-        body {
-            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
-            background-color: #f0f2f0;
-            margin: 0;
-            padding: 20px;
-            color: #333;
-        }
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            background: #fff;
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-        }
-        h2 {
-            color: var(--keirin-green);
-            border-left: 6px solid var(--keirin-green);
-            padding: 5px 15px;
-            margin-bottom: 20px;
-            font-size: 1.5em;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .instruction {
-            background: var(--keirin-light-green);
-            border: 1px solid #c8e6c9;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 14px;
-            line-height: 1.6;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            table-layout: fixed;
-        }
-        th {
-            background: #f5f5f5;
-            color: #666;
-            font-size: 13px;
-            padding: 12px 5px;
-            border: 1px solid #ddd;
-        }
-        td {
-            padding: 10px 5px;
-            border: 1px solid #ddd;
-            text-align: center;
-        }
-        input {
-            width: 90%;
-            padding: 10px 2px;
-            font-size: 18px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            text-align: center;
-            font-weight: bold;
-        }
-        input:focus {
-            border-color: var(--keirin-green);
-            background: #fffde7;
-            outline: none;
-        }
-        .res-cell {
-            font-weight: 900;
-            color: var(--danger-red);
-            font-size: 1.6em;
-            background: #fff8f8;
-        }
-        /* 車番カラー */
-        .car-1 { border-left: 10px solid #ffffff; }
-        .car-2 { border-left: 10px solid #333333; }
-        .car-3 { border-left: 10px solid #d32f2f; }
-        .car-4 { border-left: 10px solid #1976d2; }
-        .car-5 { border-left: 10px solid #fbc02d; }
-        .car-6 { border-left: 10px solid #4caf50; }
-        .car-7 { border-left: 10px solid #ff9800; }
-        .car-8 { border-left: 10px solid #ec407a; }
-        .car-9 { border-left: 10px solid #7e57c2; }
-
-        .btn-reset {
-            margin-top: 20px;
-            padding: 12px 30px;
-            background: #607d8b;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            float: right;
-        }
-        .btn-reset:hover { background: #455a64; }
+        body { font-family: "Helvetica Neue", Arial, sans-serif; background-color: #f4f4f9; padding: 20px; color: #333; }
+        .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+        h2 { color: #1b5e20; border-bottom: 3px solid #4caf50; padding-bottom: 10px; margin-bottom: 20px; font-size: 1.5em; text-align: center; }
+        .instruction { background: #e8f5e9; border-left: 5px solid #2e7d32; padding: 15px; margin-bottom: 20px; font-size: 14px; line-height: 1.6; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        th, td { border: 1px solid #ccc; padding: 10px 4px; text-align: center; }
+        th { background: #f8f9fa; font-size: 13px; }
+        input { width: 90%; padding: 10px 2px; font-size: 18px; border: 1px solid #bbb; border-radius: 4px; text-align: center; font-weight: bold; }
+        input:focus { border-color: #4caf50; outline: none; background: #fffde7; }
+        .res-cell { font-weight: 900; color: #d32f2f; font-size: 1.6em; background: #fff8f8; }
+        
+        /* 車番別背景色 */
+        .car-1 { background-color: #ffffff; color: #000; }
+        .car-2 { background-color: #333333; color: #fff; }
+        .car-3 { background-color: #e53935; color: #fff; }
+        .car-4 { background-color: #1e88e5; color: #fff; }
+        .car-5 { background-color: #fdd835; color: #000; }
+        .car-6 { background-color: #43a047; color: #fff; }
+        .car-7 { background-color: #fb8c00; color: #fff; }
+        .car-8 { background-color: #f06292; color: #fff; }
+        .car-9 { background-color: #8e24aa; color: #fff; }
+        
+        .btn-clear { float: right; margin-top: 20px; padding: 12px 25px; background: #607d8b; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn-clear:hover { background: #455a64; }
     </style>
 </head>
 <body onpaste="handlePaste(event)">
 
 <div class="container">
-    <h2>
-        <span>アシスト競輪 V8.0 最終版</span>
-        <span style="font-size: 0.6em; color: #666;">keirin.jp 完全対応</span>
-    </h2>
+    <h2>アシスト競輪 V8.0 - 修正完了版</h2>
 
     <div class="instruction">
-        <strong>【データ貼り付け手順】</strong><br>
-        1. keirin.jpの出走表ページで表全体をコピーします。<br>
-        2. この画面のどこでも良いので「Ctrl + V」（貼り付け）を押してください。<br>
-        3. 選手名から出身地を自動除去し、競走得点と勝率を100%正確に抽出・計算します。
+        【修正済み抽出ルール】<br>
+        1. 選手名：脚質（逃・両・追）の直前にある漢字から末尾1文字（県名）を削り、姓名を完全抽出します。<br>
+        2. 競走得点：小数点を含む数値を自動判別します。<br>
+        3. 勝率：競走得点の「4つ後ろ」にある数値を1着率として正確に抜き出します。
     </div>
 
     <table id="race-table">
         <thead>
             <tr>
                 <th style="width: 8%;">車番</th>
-                <th style="width: 30%;">選手名</th>
+                <th style="width: 28%;">選手名</th>
                 <th style="width: 18%;">競走得点</th>
-                <th style="width: 18%;">勝率(1着率)</th>
-                <th style="width: 26%;">予想スコア</th>
+                <th style="width: 18%;">勝率(1着)</th>
+                <th style="width: 28%;">予想スコア</th>
             </tr>
         </thead>
         <tbody>
             <script>
                 for (let i = 1; i <= 9; i++) {
                     document.write(`
-                        <tr class="car-${i}">
-                            <td><b style="font-size:1.4em;">${i}</b></td>
+                        <tr>
+                            <td class="car-${i}"><b>${i}</b></td>
                             <td><input type="text" class="p-name" placeholder="選手名"></td>
                             <td><input type="number" step="0.01" class="p-point" oninput="doCalc()" placeholder="0.00"></td>
                             <td><input type="number" step="1" class="p-win" oninput="doCalc()" placeholder="0"></td>
@@ -148,104 +70,84 @@
         </tbody>
     </table>
 
-    <button class="btn-reset" onclick="location.reload()">全クリア</button>
+    <button class="btn-clear" onclick="location.reload()">全クリア</button>
     <div style="clear:both;"></div>
 </div>
 
 <script>
 /**
  * リアルタイム計算ロジック
- * スコア = 競走得点 + (勝率 × 0.5)
+ * 公式：予想スコア = 競走得点 + (勝率 × 0.5)
  */
 function doCalc() {
     const rows = document.querySelectorAll('#race-table tbody tr');
     rows.forEach((row, i) => {
-        const pInput = row.querySelector('.p-point');
-        const wInput = row.querySelector('.p-win');
-        const resCell = document.getElementById(`score-${i+1}`);
+        const pointVal = parseFloat(row.querySelector('.p-point').value) || 0;
+        const winVal = parseFloat(row.querySelector('.p-win').value) || 0;
+        const resultCell = document.getElementById(`score-${i+1}`);
 
-        const point = parseFloat(pInput.value) || 0;
-        const win = parseFloat(wInput.value) || 0;
-
-        if (point > 0) {
-            const score = point + (win * 0.5);
-            resCell.innerText = score.toFixed(2);
+        if (pointVal > 0) {
+            const score = pointVal + (winVal * 0.5);
+            resultCell.innerText = score.toFixed(2);
         } else {
-            resCell.innerText = "-";
+            resultCell.innerText = "-";
         }
     });
 }
 
 /**
- * 出走表解析ロジック
+ * 出走表貼り付け・解析エンジン
  */
 function handlePaste(e) {
-    // 貼り付けテキストの取得
-    const rawData = (e.clipboardData || window.clipboardData).getData('text');
-    if (!rawData) return;
+    const rawText = (e.clipboardData || window.clipboardData).getData('text');
+    if (!rawText) return;
 
-    // テキストを分解
-    const tokens = rawData.split(/\s+/).filter(t => t.trim() !== "");
+    // 空白、改行、タブですべての要素を配列化
+    const items = rawText.split(/\s+/).filter(s => s.trim() !== "");
     const rows = document.querySelectorAll('#race-table tbody tr');
 
-    let riderCount = 0;
+    let riderIdx = 0;
 
-    for (let i = 0; i < tokens.length; i++) {
-        if (riderCount >= 9) break;
+    for (let i = 0; i < items.length; i++) {
+        if (riderIdx >= 9) break;
 
-        // 【課題1解決】抽出の起点を「階級/脚質」アンカーで特定
-        // 例: 「神奈川/S1/逃」などの形式を探す
-        const isAnchor = tokens[i].includes('/') && (tokens[i].match(/[SJA][1-3]/) || tokens[i].match(/[逃両追]$/));
+        // 【修正ルール1】アンカーの特定
+        // 「/逃」「/両」「/追」が含まれる要素を探す
+        if (items[i].includes('/') && /[逃両追]$/.test(items[i])) {
+            const row = rows[riderIdx];
 
-        if (isAnchor) {
-            const row = rows[riderCount];
-
-            // 【課題1&2解決】選手名と出身地の分離
-            // アンカーの直前のトークンが「選手名＋出身地」
-            if (i > 0) {
-                let nameWithPref = tokens[i-1];
-                // 最後の1文字（出身地）を削除して名前のみをセット
-                if (nameWithPref.length >= 2) {
-                    row.querySelector('.p-name').value = nameWithPref.slice(0, -1);
-                } else {
-                    row.querySelector('.p-name').value = nameWithPref;
-                }
+            // 【名前の抽出】
+            // アンカーの「直前」の要素をすべて名前候補として取得
+            let nameCandidate = items[i - 1];
+            if (nameCandidate && nameCandidate.length >= 2) {
+                // 末尾1文字（県名）を削除し、残りをすべて名前にセット
+                row.querySelector('.p-name').value = nameCandidate.slice(0, -1);
             }
 
-            // 【課題3解決】数値抽出の抜本強化
-            // アンカー以降で「最初に現れる小数点ありの数値」を競走得点とする
+            // 【修正ルール2：数値の抽出】
+            // アンカーから先に進み、小数点を含む「競走得点」を探す
             for (let k = i + 1; k < i + 15; k++) {
-                const item = tokens[k];
-                if (item && item.includes('.') && !isNaN(item)) {
-                    // 競走得点(小数点)を発見
-                    row.querySelector('.p-point').value = item;
+                if (items[k] && items[k].includes('.') && !isNaN(items[k])) {
+                    // 1. 競走得点をセット
+                    row.querySelector('.p-point').value = items[k];
 
-                    // 勝率(1着率)のオフセット特定
-                    // keirin.jpの構造: [得点] [次期得点] [整数] [勝率] の順に並ぶ
-                    // 通常、得点の3つ先(k+3)に勝率がある
-                    let winIdx = k + 3;
-                    
-                    // 安全策: もしk+3が小数なら構造がズレているためk+4を試す
-                    if (tokens[winIdx] && tokens[winIdx].includes('.')) {
-                        winIdx = k + 4;
+                    // 【修正ルール3：勝率の抽出】
+                    // 競走得点（items[k]）の「4つ後ろ」を勝率として取得
+                    let winRateIndex = k + 4;
+                    if (items[winRateIndex] && !isNaN(items[winRateIndex])) {
+                        row.querySelector('.p-win').value = items[winRateIndex];
                     }
-
-                    if (tokens[winIdx] && !isNaN(tokens[winIdx])) {
-                        row.querySelector('.p-win').value = tokens[winIdx];
-                    } else {
-                        row.querySelector('.p-win').value = ""; // 失敗時は空欄にして手入力を促す
-                    }
-                    break; 
+                    break; // この選手の探索を終了
                 }
             }
-            riderCount++;
+            riderIdx++;
         }
     }
 
-    // 計算実行
+    // 計算反映
     setTimeout(doCalc, 50);
 
-    // 入力エリア以外での貼り付けなら、ブラウザの標準動作を抑止
+    // 入力フォーム以外の場所での貼り付けなら、ブラウザの標準動作を停止
     if (e.target.tagName !== 'INPUT') {
         e.preventDefault();
     }
