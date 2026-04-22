@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アシスト競輪 V2.2 - yottiエディション</title>
+    <title>アシスト競輪 V2.3 - yottiエディション</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f2f5; padding: 20px; color: #333; }
         .container { max-width: 950px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
@@ -60,69 +60,64 @@
     </table>
 
     <button class="btn-calc" onclick="calculateScore()">予想スコアを算出</button>
-    <div class="footer-note">※表を一度クリックしてから貼り付け / 行ズレ防止強化版</div>
+    <div class="footer-note">※表を一度クリックしてからCtrl+Vで貼り付け</div>
 </div>
 
 <script>
 function calculateScore() {
     for (let i = 1; i <= 9; i++) {
         const row = document.querySelectorAll('#keirin-table tbody tr')[i-1];
-        const point = parseFloat(row.querySelector('.p-point').value) || 0;
-        const win = parseFloat(row.querySelector('.p-win').value) || 0;
-        const finalScore = (point * 1.0) + (win * 0.5);
-        const display = document.getElementById(`score-${i}`);
-        display.innerText = point > 0 ? finalScore.toFixed(2) : "-";
+        const p = parseFloat(row.querySelector('.p-point').value) || 0;
+        const w = parseFloat(row.querySelector('.p-win').value) || 0;
+        const s = (p * 1.0) + (w * 0.5);
+        document.getElementById(`score-${i}`).innerText = p > 0 ? s.toFixed(2) : "-";
     }
 }
 
-document.addEventListener('paste', (event) => {
-    const pasteData = (event.clipboardData || window.clipboardData).getData('text');
+document.addEventListener('paste', (e) => {
+    const data = (e.clipboardData || window.clipboardData).getData('text');
     const tableRows = document.querySelectorAll('#keirin-table tbody tr');
 
-    // データを行ごとに分割
-    const rawRows = pasteData.trim().split(/\n/);
-    let currentRowIndex = 0;
+    // 「/」が含まれる項目を起点に、強引に「行」を特定するロジック
+    const rawLines = data.split(/\n/);
+    let rowIndex = 0;
 
-    rawRows.forEach((line) => {
-        if (currentRowIndex >= 9) return;
+    rawLines.forEach((line) => {
+        if (rowIndex >= 9) return;
         const items = line.trim().split(/\s+/);
-        if (items.length < 3) return;
+        
+        // 脚質記号（S1/A3など）を探す
+        const sIdx = items.findIndex(it => it.includes('/'));
+        if (sIdx === -1) return;
 
-        // 脚質記号（/を含むもの）を基準点にする
-        const styleIdx = items.findIndex(item => item.includes('/'));
-        if (styleIdx === -1) return;
+        const ins = tableRows[rowIndex].querySelectorAll('input, select');
 
-        const inputs = tableRows[currentRowIndex].querySelectorAll('input, select');
+        // 選手名：脚質の直前にある漢字等を取得
+        const namePart = items.slice(Math.max(0, sIdx - 2), sIdx).filter(n => isNaN(n));
+        ins[0].value = namePart.join(' ');
 
-        // 1. 選手名（脚質記号の1〜2つ前の要素を結合）
-        const nameCandidates = items.slice(Math.max(0, styleIdx - 2), styleIdx);
-        inputs[0].value = nameCandidates.filter(n => isNaN(n)).join(' ');
-
-        // 2. 脚質
-        const styleChar = items[styleIdx].slice(-1);
-        Array.from(inputs[1].options).forEach((opt, i) => {
-            if (opt.text === styleChar) inputs[1].selectedIndex = i;
+        // 脚質：末尾の1文字
+        const sChar = items[sIdx].slice(-1);
+        Array.from(ins[1].options).forEach((opt, idx) => {
+            if (opt.text === sChar) ins[1].selectedIndex = idx;
         });
 
-        // 3. 競走得点（脚質記号より後ろにある小数点付きの数字を探す）
-        const numbersAfterStyle = items.slice(styleIdx + 1).filter(n => !isNaN(n));
-        const scoreVal = numbersAfterStyle.find(n => n.includes('.')) || numbersAfterStyle.find(n => parseFloat(n) > 50);
+        // 競走得点・勝率：脚質より後ろにある数字を全スキャン
+        const nums = items.slice(sIdx + 1).filter(n => !isNaN(n) && n !== "");
+        let score = nums.find(n => n.includes('.')) || nums.find(n => parseFloat(n) >= 60);
         
-        if (scoreVal) {
-            inputs[2].value = parseFloat(scoreVal).toFixed(2);
+        if (score) {
+            ins[2].value = parseFloat(score).toFixed(2);
+            // 勝率は得点以外の数字から
+            const win = nums.find(n => n !== score && parseFloat(n) <= 60);
+            if (win) ins[3].value = win;
         }
-
-        // 4. 勝率（得点以外の適切な数字を後ろから探す）
-        const winVal = numbersAfterStyle.find(n => n !== scoreVal && parseFloat(n) <= 60);
-        if (winVal) {
-            inputs[3].value = winVal;
-        }
-
-        currentRowIndex++;
+        
+        rowIndex++;
     });
 
-    setTimeout(calculateScore, 100);
-    event.preventDefault(); 
+    setTimeout(calculateScore, 150);
+    e.preventDefault();
 });
 </script>
 </body>
