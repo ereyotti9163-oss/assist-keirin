@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>アシスト競輪 - 鉄壁版</title>
+    <title>アシスト競輪 - 完結版</title>
     <style>
         body { font-family: sans-serif; background-color: #f0f2f5; padding: 20px; }
         .container { max-width: 900px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
@@ -29,7 +29,7 @@
         <div class="rank-item"><div class="rank-label">【2着候補】</div><div id="top2" class="rank-value">-</div><div id="top2-score" class="rank-score">0.00</div></div>
         <div class="rank-item"><div class="rank-label">【3着候補】</div><div id="top3" class="rank-value">-</div><div id="top3-score" class="rank-score">0.00</div></div>
     </div>
-    <div class="info"><strong>【隣の数字は一切無視】</strong> データを貼り付ければ、勝率だけを確実に抜き出します。</div>
+    <div class="info"><strong>【隣の数字は一切無視】</strong> コピーしたデータを貼り付ければ、勝率だけを確実に特定します。</div>
     <table>
         <thead><tr><th>車</th><th>メモ</th><th>競走得点</th><th>勝率</th><th>スコア</th></tr></thead>
         <tbody id="member-list"></tbody>
@@ -56,21 +56,19 @@
             const pIdx = index + 1;
             if (pIdx > 9) return;
 
-            // 競走得点
+            // 1. 競走得点を入力
             document.getElementById(`point-${pIdx}`).value = parseFloat(matches[pos]).toFixed(2);
 
-            // 【隣の数字を拾わない命令】
-            // 競走得点の直後には、必ず「決まり手(逃捲差マ)」「BHS」などの数字が並びます。
-            // その後に出てくる、その選手にとっての「勝率」の位置だけをピンポイントで指定。
+            // 2. 勝率抽出（お尻から逆算して隣の数字を捨てる）
             let limit = scores[index + 1] || matches.length;
-            let playerNumbers = matches.slice(pos + 1, limit).filter(v => !v.includes('.'));
+            let ints = matches.slice(pos + 1, limit).filter(v => !v.includes('.'));
             
-            // 競輪jpの「直近成績」表の構造上、勝率は数値の塊の最後から数えて3番目に固定されています。
-            // 2番目(2連対率)や1番目(3連対率)は、物理的に「無視しろ」と命令しました。
-            if (playerNumbers.length >= 3) {
-                document.getElementById(`win-${pIdx}`).value = playerNumbers[playerNumbers.length - 3];
-            } else if (playerNumbers.length > 0) {
-                document.getElementById(`win-${pIdx}`).value = playerNumbers[0];
+            // 競輪jpの「直近成績」は最後尾から【3連対率・2連対率・勝率】の順。
+            // 末尾から3番目を指定することで、隣の「8」や遠くの「22」を無視します。
+            if (ints.length >= 3) {
+                document.getElementById(`win-${pIdx}`).value = ints[ints.length - 3];
+            } else if (ints.length > 0) {
+                document.getElementById(`win-${pIdx}`).value = ints[0];
             }
             updateScore(pIdx);
         });
