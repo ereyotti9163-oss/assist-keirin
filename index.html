@@ -3,15 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アシスト競輪 V4.1 - yotti専用</title>
+    <title>アシスト競輪 V4.3 - yotti専用</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f2f5; padding: 20px; color: #333; }
         .container { max-width: 980px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
         h2 { color: #2d5a27; border-bottom: 3px solid #28a745; padding-bottom: 10px; margin-top: 0; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
-        th, td { border: 1px solid #dee2e6; padding: 12px 8px; text-align: center; }
+        th, td { border: 1px solid #dee2e6; padding: 10px 5px; text-align: center; }
         th { background-color: #f1f8f1; color: #495057; font-size: 13px; }
-        input, select { width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; box-sizing: border-box; font-size: 15px; background-color: #fff; }
+        input { width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 15px; box-sizing: border-box; text-align: center; }
+        select { width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 15px; background-color: #fff; }
         .score-cell { font-weight: bold; color: #e44d26; font-size: 1.2em; background-color: #fff9f8; }
         .btn-calc { width: 100%; padding: 18px; margin-top: 25px; background: linear-gradient(135deg, #28a745 0%, #218838 100%); color: white; border: none; border-radius: 10px; font-size: 20px; cursor: pointer; font-weight: bold; }
     </style>
@@ -19,13 +20,13 @@
 <body onpaste="handlePaste(event)">
 
 <div class="container">
-    <h2>アシスト競輪 V4.1：数値整合版</h2>
+    <h2>アシスト競輪 V4.3：最終整合版</h2>
     <table id="keirin-table">
         <thead>
             <tr>
                 <th style="width: 8%;">車番</th>
-                <th style="width: 28%;">選手名</th>
-                <th style="width: 12%;">脚質</th>
+                <th style="width: 25%;">選手名</th>
+                <th style="width: 15%;">脚質</th>
                 <th style="width: 18%;">競走得点</th>
                 <th style="width: 12%;">勝率</th>
                 <th style="width: 22%;">予想スコア</th>
@@ -37,15 +38,15 @@
                     document.write(`
                         <tr>
                             <td><b>${i}</b></td>
-                            <td><input type="text" class="p-name" placeholder="選手${i}"></td>
+                            <td><input type="text" class="p-name"></td>
                             <td>
                                 <select class="p-style" onchange="calculateScore()">
                                     <option value="">選択</option>
                                     <option value="逃">逃</option><option value="両">両</option><option value="追">追</option>
                                 </select>
                             </td>
-                            <td><input type="number" step="0.01" value="0" class="p-point" oninput="calculateScore()"></td>
-                            <td><input type="number" value="0" class="p-win" oninput="calculateScore()"></td>
+                            <td><input type="text" class="p-point" oninput="calculateScore()"></td>
+                            <td><input type="text" class="p-win" oninput="calculateScore()"></td>
                             <td class="score-cell" id="score-${i}">-</td>
                         </tr>
                     `);
@@ -53,7 +54,7 @@
             </script>
         </tbody>
     </table>
-    <button class="btn-calc" onclick="calculateScore()">スコア算出</button>
+    <button class="btn-calc" onclick="calculateScore()">計算を更新</button>
 </div>
 
 <script>
@@ -62,68 +63,55 @@ function calculateScore() {
     rows.forEach((row, i) => {
         const p = parseFloat(row.querySelector('.p-point').value) || 0;
         const w = parseFloat(row.querySelector('.p-win').value) || 0;
-        // yottiさんの計算式：得点 + (勝率 * 0.5)
         const s = p + (w * 0.5);
         document.getElementById(`score-${i+1}`).innerText = p > 0 ? s.toFixed(2) : "-";
     });
 }
 
 function handlePaste(e) {
-    const data = (e.clipboardData || window.clipboardData).getData('text');
+    const rawData = (e.clipboardData || window.clipboardData).getData('text');
     const tableRows = document.querySelectorAll('#keirin-table tbody tr');
     
-    // 改行や空白でデータを切り分け、空の要素を削除
-    const items = data.split(/\s+/).filter(it => it.trim() !== "");
+    // 全ての改行・タブを半角スペースに統一して配列化
+    const items = rawData.replace(/\s+/g, ' ').split(' ').filter(it => it.trim() !== "");
     let rowIndex = 0;
 
     for (let i = 0; i < items.length; i++) {
         if (rowIndex >= 9) break;
 
-        // 起点：脚質（例：/逃、/追、/両）
+        // 【起点】脚質（神奈川/A1/逃、のようにスラッシュの後に逃両追があるもの）
         if (items[i].includes('/') && /[逃両追]$/.test(items[i])) {
-            const ins = tableRows[rowIndex].querySelectorAll('input, select');
+            const inputs = tableRows[rowIndex].querySelectorAll('input, select');
             
             // 1. 脚質
-            const styleChar = items[i].slice(-1);
-            Array.from(ins[1].options).forEach((opt, idx) => {
-                if (opt.value === styleChar) ins[1].selectedIndex = idx;
-            });
+            const style = items[i].slice(-1);
+            inputs[1].value = style;
 
-            // 2. 選手名（脚質の左側にあるはずの文字列を結合）
-            let nameParts = [];
+            // 2. 選手名（脚質の左側を探索）
+            let nameCandidate = "";
             for (let j = i - 1; j >= 0; j--) {
-                if (!isNaN(items[j])) break; // 数字（車番や得点）にぶつかったら止める
-                if (!items[j].includes('/') && !items[j].includes('(')) nameParts.unshift(items[j]);
+                // 数字や記号に当たったらそこまでが名前
+                if (!isNaN(items[j]) || items[j].includes('/') || items[j].includes('(')) break;
+                nameCandidate = items[j] + nameCandidate;
             }
-            if (nameParts.length > 1) nameParts.pop(); // 都道府県があれば削除
-            ins[0].value = nameParts.join(' ');
+            inputs[0].value = nameCandidate;
 
-            // 3. 数値の仕分け（ここが重要）
-            // 脚質より後にある数字を最大15個スキャン
-            let futureItems = items.slice(i + 1, i + 16);
-            
-            // 【ルール1】小数点を含む数値を探し、それを「競走得点」とする
-            let foundPoint = "";
-            let pointIdx = -1;
-            for(let k=0; k<futureItems.length; k++){
-                if(futureItems[k].includes('.') && !isNaN(futureItems[k])){
-                    foundPoint = futureItems[k];
-                    pointIdx = k;
-                    break;
-                }
-            }
+            // 3. 数値の精密抽出（脚質より後のデータをスキャン）
+            let foundPoint = false;
+            for (let k = i + 1; k < i + 20 && k < items.length; k++) {
+                let val = items[k];
 
-            if (foundPoint !== "") {
-                ins[2].value = parseFloat(foundPoint).toFixed(2);
-
-                // 【ルール2】見つかった得点の「直後」にある整数を「勝率」とする
-                // keirin.jpの構造上、得点のすぐ右にあるのが1着率（勝率）です
-                for(let m = pointIdx + 1; m < futureItems.length; m++){
-                    let val = futureItems[m];
-                    if(!isNaN(val) && !val.includes('.')){
-                        ins[3].value = val;
-                        break;
+                // 【最重要】小数点が含まれる数字だけを「競走得点」として採用
+                if (!foundPoint && val.includes('.') && !isNaN(val)) {
+                    inputs[2].value = val;
+                    foundPoint = true;
+                    
+                    // 【最重要】得点の「直後」にある数字を「勝率」として採用
+                    // keirin.jpの並び順に100%合わせます
+                    if (items[k+1] && !isNaN(items[k+1])) {
+                        inputs[3].value = items[k+1];
                     }
+                    break; 
                 }
             }
             rowIndex++;
