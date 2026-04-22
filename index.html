@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>アシスト競輪 - 実戦特化版</title>
+    <title>アシスト競輪 - 最終完成版</title>
     <style>
         body { font-family: sans-serif; background-color: #f0f2f5; padding: 20px; }
         .container { max-width: 850px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
@@ -12,7 +12,7 @@
         th, td { border: 1px solid #ddd; padding: 12px; text-align: center; }
         th { background: #2c3e50; color: white; }
         .car-num { font-size: 1.5em; font-weight: bold; color: #1a2a6c; }
-        input { width: 90%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1.1em; text-align: center; box-sizing: border-box; }
+        input { width: 95%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1.1em; text-align: center; box-sizing: border-box; }
         input:focus { background: #eef2ff; border-color: #4a90e2; outline: none; }
         .score-cell { font-size: 1.4em; font-weight: bold; color: #e74c3c; background: #fff5f5; }
         .footer { margin-top: 15px; font-size: 0.8em; color: #666; text-align: right; }
@@ -24,28 +24,29 @@
     <h1>アシスト競輪</h1>
     
     <div class="info">
-        <strong>【yotti流・爆速操作】</strong><br>
-        keirin.jpの表（得点や勝率を含む範囲）をコピーして、この画面で <strong>Ctrl + V</strong> を押してください。<br>
-        車番に合わせて数値が自動展開されます。名前が必要な場合は手書きで補足してください。
+        <strong>【操作手順】</strong><br>
+        keirin.jpの出走表をガバッとコピーして、この画面上のどこでも良いので <strong>Ctrl + V</strong> を押してください。<br>
+        1番車から順に、得点と勝率が自動で展開されます。名前は必要に応じてメモ程度にお使いください。
     </div>
 
     <table>
         <thead>
             <tr>
                 <th style="width: 10%;">車番</th>
-                <th style="width: 30%;">メモ/選手名</th>
+                <th style="width: 30%;">メモ (選手名など)</th>
                 <th style="width: 20%;">競走得点</th>
                 <th style="width: 20%;">勝率(1着率)</th>
                 <th style="width: 20%;">予想スコア</th>
             </tr>
         </thead>
-        <tbody id="member-list"></tbody>
+        <tbody id="member-list">
+            </tbody>
     </table>
-    <div class="footer">※計算式: 得点 + (勝率 × 0.5)</div>
+    <div class="footer">※計算式: 競走得点 + (勝率 × 0.5)</div>
 </div>
 
 <script>
-    // 9車分の入力欄を作成
+    // 9車分の入力行を自動生成
     const tbody = document.getElementById('member-list');
     for (let i = 1; i <= 9; i++) {
         const tr = document.createElement('tr');
@@ -59,39 +60,53 @@
         tbody.appendChild(tr);
     }
 
-    // 貼り付け時の処理（数値の自動仕分けに全集中）
+    // 貼り付けイベント：数値抽出ロジック（改良版）
     document.addEventListener('paste', (e) => {
         e.preventDefault();
         const text = e.clipboardData.getData('text');
         
-        // 数値だけを抽出（小数点付きの得点、または2桁以上の整数）
-        const matches = text.match(/\d+\.\d+|\d{2,}/g);
+        // 全ての数値（小数点付き得点、または整数）を抽出
+        const matches = text.match(/\d+\.\d+|\d+/g);
         if (!matches) return;
 
-        let playerIdx = 1;
+        // 小数点を含む「得点」の位置をすべて特定
+        let scorePositions = [];
         for (let i = 0; i < matches.length; i++) {
-            if (playerIdx > 9) break;
-
-            // 「.」が含まれていれば、それは競走得点とみなす
             if (matches[i].includes('.')) {
-                const pt = parseFloat(matches[i]);
-                document.getElementById(`point-${playerIdx}`).value = pt.toFixed(2);
-
-                // 得点の直後にある「整数」を勝率として探す（3つ先まで探索）
-                for (let k = 1; k <= 3; k++) {
-                    if (matches[i + k] && !matches[i + k].includes('.')) {
-                        document.getElementById(`win-${playerIdx}`).value = matches[i + k];
-                        break;
-                    }
-                }
-                
-                recalc(playerIdx);
-                playerIdx++;
+                scorePositions.push(i);
             }
         }
+
+        // 特定した得点位置をベースに、各車番へ振り分け
+        scorePositions.forEach((pos, index) => {
+            const playerIdx = index + 1;
+            if (playerIdx > 9) return;
+
+            // 1. 競走得点をセット
+            const pt = parseFloat(matches[pos]);
+            document.getElementById(`point-${playerIdx}`).value = pt.toFixed(2);
+
+            // 2. 勝率をセット
+            // 次の得点が出るまでの区間で、後ろから数えて「勝率・2連対率・3連対率」の並びから勝率を特定
+            let searchEnd = (scorePositions[index + 1]) ? scorePositions[index + 1] : matches.length;
+            
+            // 得点と得点の間のデータの塊の中から、最後の方にある整数（勝率）を狙い撃ち
+            let dataChunk = matches.slice(pos + 1, searchEnd);
+            let integers = dataChunk.filter(v => !v.includes('.'));
+            
+            if (integers.length >= 3) {
+                // 通常「勝率・2連・3連」と並ぶので、この塊の中の後ろから3番目が勝率
+                document.getElementById(`win-${playerIdx}`).value = integers[integers.length - 3];
+            } else if (integers.length > 0) {
+                // データが少ない場合は最後にある整数を勝率と仮定
+                document.getElementById(`win-${playerIdx}`).value = integers[0];
+            }
+
+            recalc(playerIdx);
+        });
     });
 
-    // スコア再計算
+    // スコア再計算関数
     function recalc(idx) {
         const p = parseFloat(document.getElementById(`point-${idx}`).value) || 0;
         const w = parseFloat(document.getElementById(`win-${idx}`).value) || 0;
