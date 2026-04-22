@@ -64,11 +64,12 @@
 </div>
 
 <script>
-// 貼り付け解析処理
+// 貼り付け解析処理の強化版
 document.addEventListener('paste', (event) => {
     const pasteData = (event.clipboardData || window.clipboardData).getData('text');
-    // 車番の区切りを「数字 + スペース + 漢字」のパターンで分割
-    const rows = pasteData.trim().split(/\s+(?=\d\s+[^\w\s\x00-\x7F])/); 
+    
+    // 行の分割：車番(1-9)から始まる塊を認識
+    const rows = pasteData.trim().split(/\s+(?=[1-9]\s+[^\w\s\x00-\x7F])/); 
     const tableRows = document.querySelectorAll('#keirin-table tbody tr');
 
     rows.forEach((rowText, index) => {
@@ -76,12 +77,15 @@ document.addEventListener('paste', (event) => {
         const inputs = tableRows[index].querySelectorAll('input, select');
         const items = rowText.trim().split(/\s+/);
 
-        if (items.length >= 4) {
-            // 1. 選手名の抽出（車番を飛ばして苗字と名前を結合）
-            let nameStart = isNaN(items[0]) ? 0 : 1;
-            inputs[0].value = items[nameStart] + (items[nameStart + 1] ? ' ' + items[nameStart + 1] : '');
+        if (items.length >= 3) {
+            // --- 1. 選手名の抽出（純粋な漢字・かなのみを拾う） ---
+            // 数字や記号を除外して結合
+            const nameParts = items.slice(1, 4).filter(item => {
+                return isNaN(item) && !item.includes('/') && !item.includes('.');
+            });
+            inputs[0].value = nameParts.join(' ');
 
-            // 2. 脚質の抽出（「/」を含む塊から最後の1文字を取る）
+            // --- 2. 脚質の抽出（「/」を含む部分から取得） ---
             const detailInfo = items.find(item => item.includes('/'));
             if (detailInfo) {
                 const styleChar = detailInfo.slice(-1);
@@ -90,16 +94,28 @@ document.addEventListener('paste', (event) => {
                 });
             }
 
-            // 3. 競走得点の抽出（小数点を含む数値）
-            const scoreItem = items.find(item => item.includes('.') && !isNaN(item));
-            if (scoreItem) inputs[2].value = scoreItem;
+            // --- 3. 競走得点と勝率のインテリジェント仕分け ---
+            const numbers = items.filter(item => !isNaN(item) && item !== "");
             
-            // 4. 勝率の抽出（一番最後にある数値を採用）
-            const lastVal = items[items.length - 1];
-            if (!isNaN(lastVal)) inputs[3].value = lastVal;
+            // 競走得点（通常70〜120の間）
+            const scoreVal = numbers.find(n => parseFloat(n) >= 70);
+            if (scoreVal) inputs[2].value = parseFloat(scoreVal).toFixed(2);
+
+            // 勝率（得点として使われなかった、0〜60くらいの数字）
+            // numbersの中から得点に使ったもの以外を探す
+            const winVal = numbers.find(n => n !== scoreVal && parseFloat(n) <= 60 && index > 0);
+            // もし見つからなければ、最後の方の数字を勝率とする
+            if (winVal) {
+                inputs[3].value = winVal;
+            } else {
+                const possibleWin = items[items.length - 1];
+                if (!isNaN(possibleWin) && possibleWin !== scoreVal) {
+                    inputs[3].value = possibleWin;
+                }
+            }
         }
     });
-    event.preventDefault(); // デフォルトの貼り付けを防止
+    event.preventDefault(); 
 });
 
 // 予想計算ロジック
@@ -109,8 +125,7 @@ function calculateScore() {
         const point = parseFloat(row.querySelector('.p-point').value) || 0;
         const win = parseFloat(row.querySelector('.p-win').value) || 0;
         
-        // yottiさん流の計算式（仮：得点＋勝率の重み付け）
-        // 1位狙いのためのシンプルな算出例です
+        // スコア算出（得点 ＋ 勝率の50%）
         const finalScore = (point * 1.0) + (win * 0.5);
         
         const display = document.getElementById(`score-${i}`);
