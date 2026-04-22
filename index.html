@@ -2,13 +2,12 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>アシスト競輪 - 順位表示版</title>
+    <title>アシスト競輪 - 最終完全版</title>
     <style>
         body { font-family: sans-serif; background-color: #f0f2f5; padding: 20px; }
         .container { max-width: 900px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         h1 { text-align: center; color: #1a2a6c; margin-bottom: 10px; border-bottom: 2px solid #1a2a6c; padding-bottom: 10px; }
         
-        /* ランキング表示エリア */
         .ranking-box { 
             display: flex; justify-content: space-around; background: #2c3e50; 
             color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center;
@@ -51,7 +50,7 @@
     </div>
 
     <div class="info">
-        Ctrl + V で貼り付け。スコア上位3名が自動で上に表示されます。
+        表をガバッとコピーして <strong>Ctrl + V</strong> で貼り付け。一番下の選手の数値も正確に抽出するよう修正しました。
     </div>
 
     <table>
@@ -69,7 +68,6 @@
 </div>
 
 <script>
-    // 9車分生成
     const tbody = document.getElementById('member-list');
     for (let i = 1; i <= 9; i++) {
         const tr = document.createElement('tr');
@@ -86,24 +84,34 @@
     document.addEventListener('paste', (e) => {
         e.preventDefault();
         const text = e.clipboardData.getData('text');
+        // 全ての数値を抽出
         const matches = text.match(/\d+\.\d+|\d+/g);
         if (!matches) return;
 
-        let scorePositions = [];
+        let scores = [];
         for (let i = 0; i < matches.length; i++) {
-            if (matches[i].includes('.')) scorePositions.push(i);
+            if (matches[i].includes('.')) scores.push(i);
         }
 
-        scorePositions.forEach((pos, index) => {
+        scores.forEach((pos, index) => {
             const playerIdx = index + 1;
             if (playerIdx > 9) return;
+
+            // 得点をセット
             document.getElementById(`point-${playerIdx}`).value = parseFloat(matches[pos]).toFixed(2);
-            let searchEnd = (scorePositions[index + 1]) ? scorePositions[index + 1] : matches.length;
-            let dataChunk = matches.slice(pos + 1, searchEnd);
-            let integers = dataChunk.filter(v => !v.includes('.'));
-            if (integers.length >= 3) {
-                document.getElementById(`win-${playerIdx}`).value = integers[integers.length - 3];
+
+            // 勝率をセット（得点から一定距離にある「直近成績」セクションを狙い撃ち）
+            let limit = scores[index + 1] || matches.length;
+            let chunk = matches.slice(pos + 1, limit);
+            let ints = chunk.filter(v => !v.includes('.'));
+
+            // keirin.jpの構成上、直近成績の「勝率」は、その選手の数値群の後ろから3番目に来る
+            if (ints.length >= 3) {
+                document.getElementById(`win-${playerIdx}`).value = ints[ints.length - 3];
+            } else if (ints.length > 0) {
+                document.getElementById(`win-${playerIdx}`).value = ints[0];
             }
+            
             updateScore(playerIdx);
         });
         updateRanking();
@@ -120,27 +128,22 @@
         document.getElementById(`score-${idx}`).innerText = (p + (w * 0.5)).toFixed(2);
     }
 
-    // 順位を計算して表示する
     function updateRanking() {
-        let results = [];
+        let res = [];
         for (let i = 1; i <= 9; i++) {
             const sc = parseFloat(document.getElementById(`score-${i}`).innerText);
-            if (sc > 0) results.push({ num: i, score: sc });
+            if (sc > 0) res.push({ num: i, score: sc });
         }
-
-        // スコア順に並び替え
-        results.sort((a, b) => b.score - a.score);
-
-        // 上位3名を表示
+        res.sort((a, b) => b.score - a.score);
         for (let i = 1; i <= 3; i++) {
-            const elVal = document.getElementById(`top${i}`);
-            const elScore = document.getElementById(`top${i}-score`);
-            if (results[i - 1]) {
-                elVal.innerText = results[i - 1].num + "番車";
-                elScore.innerText = results[i - 1].score.toFixed(2);
+            const val = document.getElementById(`top${i}`);
+            const sc = document.getElementById(`top${i}-score`);
+            if (res[i - 1]) {
+                val.innerText = res[i - 1].num + "番車";
+                sc.innerText = res[i - 1].score.toFixed(2);
             } else {
-                elVal.innerText = "-";
-                elScore.innerText = "0.00";
+                val.innerText = "-";
+                sc.innerText = "0.00";
             }
         }
     }
