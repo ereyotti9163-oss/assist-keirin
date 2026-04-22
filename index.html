@@ -99,8 +99,8 @@
             </select>
         </div>
         <div>
-            <label><strong>ライン構成 (例: 123-45-6789):</strong></label>
-            <input type="text" id="line-info" placeholder="123-45-6789">
+            <label><strong>ライン構成 (例: 123-45-67):</strong></label>
+            <input type="text" id="line-info" value="71-536-2-4" placeholder="123-45-67">
         </div>
     </div>
 
@@ -127,22 +127,35 @@
 </div>
 
 <script>
-    // 9車立ての入力欄を自動生成
+    // 画像データに基づいた初期値
+    const initialData = [
+        { name: "大島 将人", style: "追", score: 87.04, winrate: 8.0 },
+        { name: "岩本 純", style: "両", score: 84.74, winrate: 14.0 },
+        { name: "乾 庄平", style: "追", score: 85.03, winrate: 3.0 },
+        { name: "岡崎 昭次", style: "追", score: 80.53, winrate: 0.0 },
+        { name: "善利 裕生", style: "両", score: 85.13, winrate: 17.0 },
+        { name: "山出 裕幸", style: "追", score: 79.52, winrate: 0.0 },
+        { name: "井上 公利", style: "逃", score: 82.86, winrate: 20.0 },
+        { name: "", style: "両", score: 0.0, winrate: 0.0 },
+        { name: "", style: "両", score: 0.0, winrate: 0.0 }
+    ];
+
     const tbody = document.querySelector('#runner-table tbody');
     for (let i = 1; i <= 9; i++) {
+        const data = initialData[i-1];
         tbody.innerHTML += `
             <tr>
                 <td><strong>${i}</strong></td>
-                <td><input type="text" id="name-${i}" placeholder="選手${i}"></td>
+                <td><input type="text" id="name-${i}" value="${data.name}" placeholder="選手${i}"></td>
                 <td>
                     <select id="style-${i}">
-                        <option value="逃">逃</option>
-                        <option value="両" selected>両</option>
-                        <option value="追">追</option>
+                        <option value="逃" ${data.style === '逃' ? 'selected' : ''}>逃</option>
+                        <option value="両" ${data.style === '両' ? 'selected' : ''}>両</option>
+                        <option value="追" ${data.style === '追' ? 'selected' : ''}>追</option>
                     </select>
                 </td>
-                <td><input type="number" id="score-${i}" value="70.0" step="0.1"></td>
-                <td><input type="number" id="winrate-${i}" value="10" step="0.1"></td>
+                <td><input type="number" id="score-${i}" value="${data.score}" step="0.01"></td>
+                <td><input type="number" id="winrate-${i}" value="${data.winrate}" step="0.1"></td>
             </tr>
         `;
     }
@@ -152,31 +165,29 @@
         const lineStr = document.getElementById('line-info').value;
         let scores = [];
 
-        // ライン位置の解析
         const lines = lineStr.split('-');
-        let runnerRoles = {}; // 車番ごとの役割補正
+        let runnerRoles = {};
         lines.forEach(line => {
             const runners = line.split('');
             runners.forEach((num, index) => {
-                if (index === 0) runnerRoles[num] = 1.05; // 先頭補正
-                else if (index === 1) runnerRoles[num] = 1.1; // 番手補正（最も有利とされる）
+                if (index === 0) runnerRoles[num] = 1.05; 
+                else if (index === 1) runnerRoles[num] = 1.1; 
                 else runnerRoles[num] = 1.0;
             });
         });
 
         for (let i = 1; i <= 9; i++) {
             let rating = parseFloat(document.getElementById(`score-${i}`).value) || 0;
+            if (rating === 0) continue; // データがない車番はスキップ
+
             let winRate = parseFloat(document.getElementById(`winrate-${i}`).value) || 0;
             let style = document.getElementById(`style-${i}`).value;
             
-            // 基本スコア計算 (競走得点重視 + 勝率)
             let baseScore = (rating * 0.8) + (winRate * 0.2);
 
-            // バンクと脚質の相性補正
             if (bank === "333" && style === "逃") baseScore *= 1.1;
             if (bank === "500" && style === "追") baseScore *= 1.1;
 
-            // ライン位置による補正を適用
             if (runnerRoles[i]) {
                 baseScore *= runnerRoles[i];
             }
@@ -188,7 +199,6 @@
             });
         }
 
-        // スコア順に並び替え
         scores.sort((a, b) => b.total - a.total);
 
         const resultContent = document.getElementById('result-content');
@@ -198,11 +208,12 @@
         });
         html += "</ol>";
 
-        // 簡易的な3連単フォーカス生成
         const top3 = scores.slice(0, 3).map(s => s.num);
-        html += `<div style="background:#f9f9f9; padding:10px; border-radius:5px; margin-top:10px;">
-                    <strong>推奨3連単:</strong> ${top3[0]} ↔ ${top3[1]} → ${top3[2]}
-                 </div>`;
+        if (top3.length >= 3) {
+            html += `<div style="background:#f9f9f9; padding:10px; border-radius:5px; margin-top:10px;">
+                        <strong>推奨3連単:</strong> ${top3[0]} ↔ ${top3[1]} → ${top3[2]}
+                     </div>`;
+        }
 
         resultContent.innerHTML = html;
         document.getElementById('result').style.display = 'block';
