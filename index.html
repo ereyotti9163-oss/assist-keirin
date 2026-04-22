@@ -2,18 +2,20 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>アシスト競輪 - 最終改善版</title>
+    <title>アシスト競輪 - 実戦特化版</title>
     <style>
-        body { font-family: sans-serif; background-color: #f0f4f8; padding: 20px; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        h1 { text-align: center; color: #2c3e50; font-size: 1.5em; }
-        .hint-area { background: #e8f4fd; padding: 10px; border-radius: 5px; margin-bottom: 20px; font-size: 0.9em; line-height: 1.6; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
-        th { background: #34495e; color: white; }
-        input { width: 90%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; text-align: center; font-size: 1em; }
-        .score-cell { font-weight: bold; color: #e74c3c; background: #fdf2f2; }
-        .copy-info { color: #7f8c8d; font-size: 0.8em; margin-top: 5px; }
+        body { font-family: sans-serif; background-color: #f0f2f5; padding: 20px; }
+        .container { max-width: 850px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #1a2a6c; margin-bottom: 20px; border-bottom: 2px solid #1a2a6c; padding-bottom: 10px; }
+        .info { background: #fff3cd; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-size: 0.9em; border-left: 5px solid #ffa000; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: center; }
+        th { background: #2c3e50; color: white; }
+        .car-num { font-size: 1.5em; font-weight: bold; color: #1a2a6c; }
+        input { width: 90%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1.1em; text-align: center; box-sizing: border-box; }
+        input:focus { background: #eef2ff; border-color: #4a90e2; outline: none; }
+        .score-cell { font-size: 1.4em; font-weight: bold; color: #e74c3c; background: #fff5f5; }
+        .footer { margin-top: 15px; font-size: 0.8em; color: #666; text-align: right; }
     </style>
 </head>
 <body>
@@ -21,91 +23,79 @@
 <div class="container">
     <h1>アシスト競輪</h1>
     
-    <div class="hint-area">
-        <strong>【操作手順】</strong><br>
-        keirin.jpの出走表（脚質・名前・得点を含む範囲）をコピーして、この画面上で <strong>Ctrl + V</strong> を押してください。<br>
-        1番車から自動で展開します。数値が空欄の場合は手入力してください。
+    <div class="info">
+        <strong>【yotti流・爆速操作】</strong><br>
+        keirin.jpの表（得点や勝率を含む範囲）をコピーして、この画面で <strong>Ctrl + V</strong> を押してください。<br>
+        車番に合わせて数値が自動展開されます。名前が必要な場合は手書きで補足してください。
     </div>
 
-    <table id="race-table">
+    <table>
         <thead>
             <tr>
-                <th style="width: 8%;">車番</th>
-                <th style="width: 30%;">選手名 (県名除去)</th>
+                <th style="width: 10%;">車番</th>
+                <th style="width: 30%;">メモ/選手名</th>
                 <th style="width: 20%;">競走得点</th>
                 <th style="width: 20%;">勝率(1着率)</th>
-                <th style="width: 22%;">予想スコア</th>
+                <th style="width: 20%;">予想スコア</th>
             </tr>
         </thead>
-        <tbody id="member-list">
-            </tbody>
+        <tbody id="member-list"></tbody>
     </table>
-    <div class="copy-info">※スコア = 得点 + (勝率 × 0.5)</div>
+    <div class="footer">※計算式: 得点 + (勝率 × 0.5)</div>
 </div>
 
 <script>
-    // 9車分の入力行を生成
+    // 9車分の入力欄を作成
     const tbody = document.getElementById('member-list');
     for (let i = 1; i <= 9; i++) {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td>${i}</td>
-            <td><input type="text" id="name-${i}" placeholder="選手名"></td>
-            <td><input type="number" step="0.01" id="point-${i}" placeholder="0.00" oninput="calcScore(${i})"></td>
-            <td><input type="number" step="0.1" id="win-${i}" placeholder="0" oninput="calcScore(${i})"></td>
+            <td class="car-num">${i}</td>
+            <td><input type="text" id="name-${i}" placeholder="任意入力"></td>
+            <td><input type="number" step="0.01" id="point-${i}" placeholder="0.00" oninput="recalc(${i})"></td>
+            <td><input type="number" step="1" id="win-${i}" placeholder="0" oninput="recalc(${i})"></td>
             <td id="score-${i}" class="score-cell">0.00</td>
         `;
         tbody.appendChild(tr);
     }
 
-    // 貼り付けイベント
+    // 貼り付け時の処理（数値の自動仕分けに全集中）
     document.addEventListener('paste', (e) => {
         e.preventDefault();
         const text = e.clipboardData.getData('text');
-        // タブ、改行、全角スペースなどで分割して配列化
-        const items = text.split(/[\t\n\r\s]+/).filter(item => item.trim() !== "");
         
-        let playerIndex = 1;
-        
-        for (let i = 0; i < items.length; i++) {
-            // 「/逃」「/両」「/追」を起点にする
-            if (items[i].includes('/逃') || items[i].includes('/両') || items[i].includes('/追')) {
-                if (playerIndex > 9) break;
+        // 数値だけを抽出（小数点付きの得点、または2桁以上の整数）
+        const matches = text.match(/\d+\.\d+|\d{2,}/g);
+        if (!matches) return;
 
-                // 1. 名前抽出（キーワードの直前。末尾1文字の県名を削除）
-                let rawName = items[i-1] || "";
-                let cleanName = rawName.length > 1 ? rawName.slice(0, -1) : rawName;
-                document.getElementById(`name-${playerIndex}`).value = cleanName;
+        let playerIdx = 1;
+        for (let i = 0; i < matches.length; i++) {
+            if (playerIdx > 9) break;
 
-                // 2. 競走得点（キーワードの直後付近にある小数点付きの数値）
-                for (let j = 1; j <= 3; j++) {
-                    if (items[i+j] && items[i+j].includes('.')) {
-                        const pt = parseFloat(items[i+j]);
-                        document.getElementById(`point-${playerIndex}`).value = pt.toFixed(2);
-                        
-                        // 3. 勝率（得点の4つ後にあることが多い整数）
-                        // keirin.jpの構造に合わせ、得点の位置から勝率を探す
-                        if (items[i+j+4]) {
-                            const winRate = parseFloat(items[i+j+4]);
-                            if (!isNaN(winRate)) {
-                                document.getElementById(`win-${playerIndex}`).value = winRate;
-                            }
-                        }
+            // 「.」が含まれていれば、それは競走得点とみなす
+            if (matches[i].includes('.')) {
+                const pt = parseFloat(matches[i]);
+                document.getElementById(`point-${playerIdx}`).value = pt.toFixed(2);
+
+                // 得点の直後にある「整数」を勝率として探す（3つ先まで探索）
+                for (let k = 1; k <= 3; k++) {
+                    if (matches[i + k] && !matches[i + k].includes('.')) {
+                        document.getElementById(`win-${playerIdx}`).value = matches[i + k];
                         break;
                     }
                 }
                 
-                calcScore(playerIndex);
-                playerIndex++;
+                recalc(playerIdx);
+                playerIdx++;
             }
         }
     });
 
-    // スコア計算
-    function calcScore(idx) {
-        const pt = parseFloat(document.getElementById(`point-${idx}`).value) || 0;
-        const win = parseFloat(document.getElementById(`win-${idx}`).value) || 0;
-        const score = pt + (win * 0.5);
+    // スコア再計算
+    function recalc(idx) {
+        const p = parseFloat(document.getElementById(`point-${idx}`).value) || 0;
+        const w = parseFloat(document.getElementById(`win-${idx}`).value) || 0;
+        const score = p + (w * 0.5);
         document.getElementById(`score-${idx}`).innerText = score.toFixed(2);
     }
 </script>
