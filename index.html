@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アシスト競輪 V2.1 - yottiエディション</title>
+    <title>アシスト競輪 V2.2 - yottiエディション</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f2f5; padding: 20px; color: #333; }
         .container { max-width: 950px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
@@ -60,95 +60,70 @@
     </table>
 
     <button class="btn-calc" onclick="calculateScore()">予想スコアを算出</button>
-    <div class="footer-note">※表のどこかをクリックしてCtrl+Vで貼り付け / 数字入力で即計算</div>
+    <div class="footer-note">※表を一度クリックしてから貼り付け / 行ズレ防止強化版</div>
 </div>
 
 <script>
-// 予想計算ロジック（リアルタイム対応）
 function calculateScore() {
     for (let i = 1; i <= 9; i++) {
         const row = document.querySelectorAll('#keirin-table tbody tr')[i-1];
-        const pointInput = row.querySelector('.p-point');
-        const winInput = row.querySelector('.p-win');
-        
-        const point = parseFloat(pointInput.value) || 0;
-        const win = parseFloat(winInput.value) || 0;
-        
-        // スコア算出（得点 ＋ 勝率の50%）
+        const point = parseFloat(row.querySelector('.p-point').value) || 0;
+        const win = parseFloat(row.querySelector('.p-win').value) || 0;
         const finalScore = (point * 1.0) + (win * 0.5);
-        
         const display = document.getElementById(`score-${i}`);
-        if (point > 0) {
-            display.innerText = finalScore.toFixed(2);
-        } else {
-            display.innerText = "-";
-        }
+        display.innerText = point > 0 ? finalScore.toFixed(2) : "-";
     }
 }
 
-// 貼り付け解析処理の強化版（小数点優先・低得点対応）
 document.addEventListener('paste', (event) => {
     const pasteData = (event.clipboardData || window.clipboardData).getData('text');
-    
-    // 行の分割：車番(1-9)から始まる塊を認識
-    const rows = pasteData.trim().split(/\s+(?=[1-9]\s+[^\w\s\x00-\x7F])/); 
     const tableRows = document.querySelectorAll('#keirin-table tbody tr');
 
-    rows.forEach((rowText, index) => {
-        if (index >= 9) return;
-        const row = tableRows[index];
-        const inputs = row.querySelectorAll('input, select');
-        const items = rowText.trim().split(/\s+/);
+    // データを行ごとに分割
+    const rawRows = pasteData.trim().split(/\n/);
+    let currentRowIndex = 0;
 
-        if (items.length >= 3) {
-            // --- 1. 選手名の抽出 ---
-            const nameParts = items.slice(1, 4).filter(item => {
-                return isNaN(item) && !item.includes('/') && !item.includes('.');
-            });
-            inputs[0].value = nameParts.join(' ');
+    rawRows.forEach((line) => {
+        if (currentRowIndex >= 9) return;
+        const items = line.trim().split(/\s+/);
+        if (items.length < 3) return;
 
-            // --- 2. 脚質の抽出 ---
-            const detailInfo = items.find(item => item.includes('/'));
-            if (detailInfo) {
-                const styleChar = detailInfo.slice(-1);
-                Array.from(inputs[1].options).forEach((opt, i) => {
-                    if (opt.text === styleChar) inputs[1].selectedIndex = i;
-                });
-            }
+        // 脚質記号（/を含むもの）を基準点にする
+        const styleIdx = items.findIndex(item => item.includes('/'));
+        if (styleIdx === -1) return;
 
-            // --- 3. 競走得点と勝率のインテリジェント仕分け ---
-            const numbers = items.filter(item => !isNaN(item) && item !== "");
-            
-            // 【強化版ルール】小数点を含む数字、または60〜130の範囲を競走得点とする
-            let scoreVal = numbers.find(n => n.includes('.')); // 小数点を最優先
-            if (!scoreVal) {
-                scoreVal = numbers.find(n => parseFloat(n) >= 60); // 小数点がなければ60以上を探す
-            }
-            
-            if (scoreVal) {
-                inputs[2].value = parseFloat(scoreVal).toFixed(2);
-            }
+        const inputs = tableRows[currentRowIndex].querySelectorAll('input, select');
 
-            // 勝率（得点に使われなかった数値、かつ年齢（62, 45等）ではない可能性が高いものを探す）
-            const winVal = numbers.find(n => n !== scoreVal && parseFloat(n) <= 60 && !items.slice(1,5).includes(n));
-            
-            if (winVal) {
-                inputs[3].value = winVal;
-            } else {
-                // 最後の方にある数値を勝率として試みる
-                const lastNum = items[items.length - 1];
-                if (!isNaN(lastNum) && lastNum !== scoreVal) {
-                    inputs[3].value = lastNum;
-                }
-            }
+        // 1. 選手名（脚質記号の1〜2つ前の要素を結合）
+        const nameCandidates = items.slice(Math.max(0, styleIdx - 2), styleIdx);
+        inputs[0].value = nameCandidates.filter(n => isNaN(n)).join(' ');
+
+        // 2. 脚質
+        const styleChar = items[styleIdx].slice(-1);
+        Array.from(inputs[1].options).forEach((opt, i) => {
+            if (opt.text === styleChar) inputs[1].selectedIndex = i;
+        });
+
+        // 3. 競走得点（脚質記号より後ろにある小数点付きの数字を探す）
+        const numbersAfterStyle = items.slice(styleIdx + 1).filter(n => !isNaN(n));
+        const scoreVal = numbersAfterStyle.find(n => n.includes('.')) || numbersAfterStyle.find(n => parseFloat(n) > 50);
+        
+        if (scoreVal) {
+            inputs[2].value = parseFloat(scoreVal).toFixed(2);
         }
+
+        // 4. 勝率（得点以外の適切な数字を後ろから探す）
+        const winVal = numbersAfterStyle.find(n => n !== scoreVal && parseFloat(n) <= 60);
+        if (winVal) {
+            inputs[3].value = winVal;
+        }
+
+        currentRowIndex++;
     });
 
-    // 貼り付け直後に計算を実行
     setTimeout(calculateScore, 100);
     event.preventDefault(); 
 });
 </script>
-
 </body>
 </html>
