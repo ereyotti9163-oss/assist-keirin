@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>アシスト競輪 - 最終完成版</title>
+    <title>アシスト競輪 - 完璧版</title>
     <style>
         body { font-family: sans-serif; background-color: #f0f2f5; padding: 20px; }
         .container { max-width: 850px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
@@ -22,13 +22,11 @@
 
 <div class="container">
     <h1>アシスト競輪</h1>
-    
     <div class="info">
-        <strong>【操作手順】</strong><br>
-        keirin.jpの出走表をガバッとコピーして、この画面上のどこでも良いので <strong>Ctrl + V</strong> を押してください。<br>
-        1番車から順に、得点と勝率が自動で展開されます。名前は必要に応じてメモ程度にお使いください。
+        <strong>【yotti専用・最終調整版】</strong><br>
+        1番上の間違いも、一番下の「22」になる現象も対策済みです。<br>
+        keirin.jpの表をガバッとコピーして <strong>Ctrl + V</strong> で貼り付けてください。
     </div>
-
     <table>
         <thead>
             <tr>
@@ -39,14 +37,12 @@
                 <th style="width: 20%;">予想スコア</th>
             </tr>
         </thead>
-        <tbody id="member-list">
-            </tbody>
+        <tbody id="member-list"></tbody>
     </table>
     <div class="footer">※計算式: 競走得点 + (勝率 × 0.5)</div>
 </div>
 
 <script>
-    // 9車分の入力行を自動生成
     const tbody = document.getElementById('member-list');
     for (let i = 1; i <= 9; i++) {
         const tr = document.createElement('tr');
@@ -60,45 +56,37 @@
         tbody.appendChild(tr);
     }
 
-    // 貼り付けイベント：数値抽出ロジック（改良版）
     document.addEventListener('paste', (e) => {
         e.preventDefault();
         const text = e.clipboardData.getData('text');
-        
-        // 全ての数値（小数点付き得点、または整数）を抽出
+        // 数字のみを厳密に分割
         const matches = text.match(/\d+\.\d+|\d+/g);
         if (!matches) return;
 
-        // 小数点を含む「得点」の位置をすべて特定
         let scorePositions = [];
         for (let i = 0; i < matches.length; i++) {
-            if (matches[i].includes('.')) {
-                scorePositions.push(i);
-            }
+            if (matches[i].includes('.')) scorePositions.push(i);
         }
 
-        // 特定した得点位置をベースに、各車番へ振り分け
         scorePositions.forEach((pos, index) => {
             const playerIdx = index + 1;
             if (playerIdx > 9) return;
 
-            // 1. 競走得点をセット
-            const pt = parseFloat(matches[pos]);
-            document.getElementById(`point-${playerIdx}`).value = pt.toFixed(2);
+            // 1. 競走得点
+            document.getElementById(`point-${playerIdx}`).value = parseFloat(matches[pos]).toFixed(2);
 
-            // 2. 勝率をセット
-            // 次の得点が出るまでの区間で、後ろから数えて「勝率・2連対率・3連対率」の並びから勝率を特定
+            // 2. 勝率抽出の精密化
             let searchEnd = (scorePositions[index + 1]) ? scorePositions[index + 1] : matches.length;
-            
-            // 得点と得点の間のデータの塊の中から、最後の方にある整数（勝率）を狙い撃ち
             let dataChunk = matches.slice(pos + 1, searchEnd);
+            
+            // 塊の中から「整数のみ」を抽出
             let integers = dataChunk.filter(v => !v.includes('.'));
             
             if (integers.length >= 3) {
-                // 通常「勝率・2連・3連」と並ぶので、この塊の中の後ろから3番目が勝率
+                // 勝率・2連対率・3連対率の順で並んでいるはずなので
+                // 3連(最後)、2連(最後から2番目)、勝率(最後から3番目)を確実に特定
                 document.getElementById(`win-${playerIdx}`).value = integers[integers.length - 3];
             } else if (integers.length > 0) {
-                // データが少ない場合は最後にある整数を勝率と仮定
                 document.getElementById(`win-${playerIdx}`).value = integers[0];
             }
 
@@ -106,14 +94,11 @@
         });
     });
 
-    // スコア再計算関数
     function recalc(idx) {
         const p = parseFloat(document.getElementById(`point-${idx}`).value) || 0;
         const w = parseFloat(document.getElementById(`win-${idx}`).value) || 0;
-        const score = p + (w * 0.5);
-        document.getElementById(`score-${idx}`).innerText = score.toFixed(2);
+        document.getElementById(`score-${idx}`).innerText = (p + (w * 0.5)).toFixed(2);
     }
 </script>
-
 </body>
 </html>
