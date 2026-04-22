@@ -3,221 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アシストマジック 競輪予想 V1</title>
+    <title>アシスト競輪アップデート</title>
     <style>
-        :root {
-            --primary-color: #2c3e50;
-            --accent-color: #27ae60;
-            --bg-color: #f4f7f6;
-        }
-        body {
-            font-family: "Helvetica Neue", Arial, sans-serif;
-            background-color: var(--bg-color);
-            margin: 0;
-            padding: 20px;
-            color: var(--primary-color);
-        }
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        h1 {
-            text-align: center;
-            color: var(--accent-color);
-            border-bottom: 2px solid var(--accent-color);
-            padding-bottom: 10px;
-        }
-        .setup-section {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 20px;
-            background: #eef2f3;
-            padding: 15px;
-            border-radius: 8px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: center;
-        }
+        body { font-family: sans-serif; background-color: #f0f4f8; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
         th { background-color: #f8f9fa; }
-        input, select {
-            width: 90%;
-            padding: 5px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        .btn-calc {
-            display: block;
-            width: 100%;
-            padding: 15px;
-            background-color: var(--accent-color);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.3s;
-        }
-        .btn-calc:hover { background-color: #219150; }
-        #result {
-            margin-top: 20px;
-            padding: 15px;
-            border-radius: 8px;
-            background: #fff;
-            border: 2px solid var(--accent-color);
-        }
-        .rank-1 { color: #e74c3c; font-weight: bold; font-size: 1.2em; }
-        .rank-2 { color: #e67e22; font-weight: bold; }
-        .rank-3 { color: #f1c40f; font-weight: bold; }
+        input, select { width: 90%; padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
+        .header-title { font-weight: bold; margin-bottom: 10px; display: block; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>アシストマジック 競輪予想 V1</h1>
-    
-    <div class="setup-section">
-        <div>
-            <label><strong>バンクタイプ:</strong></label>
-            <select id="bank-type">
-                <option value="333">333m (先行有利)</option>
-                <option value="400" selected>400m (標準)</option>
-                <option value="500">500m (追い込み有利)</option>
-            </select>
-        </div>
-        <div>
-            <label><strong>ライン構成 (例: 123-45-67):</strong></label>
-            <input type="text" id="line-info" value="71-536-2-4" placeholder="123-45-67">
-        </div>
-    </div>
-
-    <table id="runner-table">
-        <thead>
-            <tr>
-                <th>車番</th>
-                <th>選手名</th>
-                <th>脚質</th>
-                <th>競走得点</th>
-                <th>勝率(%)</th>
-            </tr>
-        </thead>
-        <tbody>
-            </tbody>
-    </table>
-
-    <button class="btn-calc" onclick="calculateForecast()">予想スコアを算出</button>
-
-    <div id="result" style="display:none;">
-        <h2>予想結果 (推奨買い目)</h2>
-        <div id="result-content"></div>
-    </div>
-</div>
+<span class="header-title">アシスト競輪：初期画面</span>
+<table id="keirin-table">
+    <thead>
+        <tr>
+            <th>車番</th>
+            <th>選手名</th>
+            <th>脚質</th>
+            <th>競走得点</th>
+            <th>勝率(%)</th>
+        </tr>
+    </thead>
+    <tbody>
+        <script>
+            for (let i = 1; i <= 9; i++) {
+                document.write(`
+                    <tr>
+                        <td><b>${i}</b></td>
+                        <td><input type="text" placeholder="選手${i}"></td>
+                        <td>
+                            <select>
+                                <option value="">選択</option>
+                                <option value="逃">逃</option>
+                                <option value="両">両</option>
+                                <option value="追">追</option>
+                            </select>
+                        </td>
+                        <td><input type="number" step="0.01" value="0"></td>
+                        <td><input type="number" value="0"></td>
+                    </tr>
+                `);
+            }
+        </script>
+    </tbody>
+</table>
 
 <script>
-    // 画像データに基づいた初期値
-    const initialData = [
-        { name: "大島 将人", style: "追", score: 87.04, winrate: 8.0 },
-        { name: "岩本 純", style: "両", score: 84.74, winrate: 14.0 },
-        { name: "乾 庄平", style: "追", score: 85.03, winrate: 3.0 },
-        { name: "岡崎 昭次", style: "追", score: 80.53, winrate: 0.0 },
-        { name: "善利 裕生", style: "両", score: 85.13, winrate: 17.0 },
-        { name: "山出 裕幸", style: "追", score: 79.52, winrate: 0.0 },
-        { name: "井上 公利", style: "逃", score: 82.86, winrate: 20.0 },
-        { name: "", style: "両", score: 0.0, winrate: 0.0 },
-        { name: "", style: "両", score: 0.0, winrate: 0.0 }
-    ];
+document.addEventListener('paste', (event) => {
+    // クリップボードからテキストを取得
+    const pasteData = (event.clipboardData || window.clipboardData).getData('text');
+    
+    // 行ごとに分割（実際のデータに合わせて解析）
+    // 選手名、得点などが混ざった塊を正規表現で各車番に分ける
+    const rows = pasteData.trim().split(/\s+(?=\d\s+[^\d])/); 
+    // ※「数字 + スペース + 漢字」が出現する場所を車番の区切りとみなす
+    
+    const tableRows = document.querySelectorAll('#keirin-table tbody tr');
 
-    const tbody = document.querySelector('#runner-table tbody');
-    for (let i = 1; i <= 9; i++) {
-        const data = initialData[i-1];
-        tbody.innerHTML += `
-            <tr>
-                <td><strong>${i}</strong></td>
-                <td><input type="text" id="name-${i}" value="${data.name}" placeholder="選手${i}"></td>
-                <td>
-                    <select id="style-${i}">
-                        <option value="逃" ${data.style === '逃' ? 'selected' : ''}>逃</option>
-                        <option value="両" ${data.style === '両' ? 'selected' : ''}>両</option>
-                        <option value="追" ${data.style === '追' ? 'selected' : ''}>追</option>
-                    </select>
-                </td>
-                <td><input type="number" id="score-${i}" value="${data.score}" step="0.01"></td>
-                <td><input type="number" id="winrate-${i}" value="${data.winrate}" step="0.1"></td>
-            </tr>
-        `;
-    }
+    rows.forEach((rowText, index) => {
+        if (index >= 9) return;
 
-    function calculateForecast() {
-        const bank = document.getElementById('bank-type').value;
-        const lineStr = document.getElementById('line-info').value;
-        let scores = [];
+        const tableRow = tableRows[index];
+        const inputs = tableRow.querySelectorAll('input, select');
 
-        const lines = lineStr.split('-');
-        let runnerRoles = {};
-        lines.forEach(line => {
-            const runners = line.split('');
-            runners.forEach((num, index) => {
-                if (index === 0) runnerRoles[num] = 1.05; 
-                else if (index === 1) runnerRoles[num] = 1.1; 
-                else runnerRoles[num] = 1.0;
-            });
-        });
+        // スペースで細かく分割
+        // 例: ["将人", "福", "島/A1A1/追", "87.04", "0", "0", "5", "3", "0"]
+        const items = rowText.trim().split(/\s+/);
 
-        for (let i = 1; i <= 9; i++) {
-            let rating = parseFloat(document.getElementById(`score-${i}`).value) || 0;
-            if (rating === 0) continue; // データがない車番はスキップ
+        // データの並び順に基づいて流し込み
+        if (items.length >= 4) {
+            // 1. 選手名 (苗字と名前を結合)
+            // もし先頭に車番の数字が混じっていたら除外して結合
+            let nameStart = isNaN(items[0]) ? 0 : 1;
+            inputs[0].value = items[nameStart] + (items[nameStart + 1] ? ' ' + items[nameStart + 1] : '');
 
-            let winRate = parseFloat(document.getElementById(`winrate-${i}`).value) || 0;
-            let style = document.getElementById(`style-${i}`).value;
-            
-            let baseScore = (rating * 0.8) + (winRate * 0.2);
-
-            if (bank === "333" && style === "逃") baseScore *= 1.1;
-            if (bank === "500" && style === "追") baseScore *= 1.1;
-
-            if (runnerRoles[i]) {
-                baseScore *= runnerRoles[i];
+            // 2. 脚質 (「島/A1A1/追」のような文字列から最後の1文字を抽出)
+            const detailInfo = items.find(item => item.includes('/'));
+            if (detailInfo) {
+                const styleChar = detailInfo.slice(-1);
+                const select = inputs[1];
+                for (let i = 0; i < select.options.length; i++) {
+                    if (select.options[i].text === styleChar) {
+                        select.selectedIndex = i;
+                        break;
+                    }
+                }
             }
 
-            scores.push({ 
-                num: i, 
-                name: document.getElementById(`name-${i}`).value || `選手${i}`, 
-                total: baseScore 
-            });
+            // 3. 競走得点 (小数点を含む数値を探す)
+            const score = items.find(item => item.includes('.'));
+            if (score) inputs[2].value = score;
+
+            // 4. 勝率 (一番最後の数値を勝率として入れる)
+            const lastVal = items[items.length - 1];
+            if (!isNaN(lastVal)) inputs[3].value = lastVal;
         }
+    });
 
-        scores.sort((a, b) => b.total - a.total);
-
-        const resultContent = document.getElementById('result-content');
-        let html = "<h3>期待値ランキング</h3><ol>";
-        scores.slice(0, 5).forEach((s, idx) => {
-            html += `<li class="rank-${idx+1}">${s.num}番車 ${s.name} (算出スコア: ${s.total.toFixed(2)})</li>`;
-        });
-        html += "</ol>";
-
-        const top3 = scores.slice(0, 3).map(s => s.num);
-        if (top3.length >= 3) {
-            html += `<div style="background:#f9f9f9; padding:10px; border-radius:5px; margin-top:10px;">
-                        <strong>推奨3連単:</strong> ${top3[0]} ↔ ${top3[1]} → ${top3[2]}
-                     </div>`;
-        }
-
-        resultContent.innerHTML = html;
-        document.getElementById('result').style.display = 'block';
-    }
+    // 貼り付け後、デフォルトの挙動（文字が入力欄にそのまま出るの）を防ぐ
+    event.preventDefault();
+});
 </script>
 
 </body>
