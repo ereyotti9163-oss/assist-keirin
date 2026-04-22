@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アシスト競輪 V2.7 - yottiエディション</title>
+    <title>アシスト競輪 V2.9 - yottiエディション</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f2f5; padding: 20px; color: #333; }
         .container { max-width: 950px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
@@ -14,7 +14,7 @@
         input, select { width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; box-sizing: border-box; font-size: 15px; background-color: #fff; }
         .score-cell { font-weight: bold; color: #e44d26; font-size: 1.2em; background-color: #fff9f8; }
         .btn-calc { width: 100%; padding: 18px; margin-top: 25px; background: linear-gradient(135deg, #28a745 0%, #218838 100%); color: white; border: none; border-radius: 10px; font-size: 20px; cursor: pointer; font-weight: bold; }
-        .footer-note { margin-top: 15px; font-size: 12px; color: #6c757d; text-align: right; }
+        b { color: #218838; }
     </style>
 </head>
 <body onpaste="handlePaste(event)">
@@ -72,57 +72,51 @@ function handlePaste(e) {
     const data = (e.clipboardData || window.clipboardData).getData('text');
     const tableRows = document.querySelectorAll('#keirin-table tbody tr');
     
-    // すべての単語を配列にする（改行も空白もまとめて区切る）
-    const items = data.trim().split(/\s+/);
+    // 全データから空白・改行で区切って配列化
+    const items = data.split(/\s+/).filter(it => it.trim() !== "");
     let rowIndex = 0;
 
     for (let i = 0; i < items.length; i++) {
         if (rowIndex >= 9) break;
 
-        // 「脚質（/逃、/追、/両など）」を起点にする
+        // 脚質の判定（スラッシュを含む、または「逃・両・追」のみの項目）
         if (items[i].includes('/') || /^[逃両追]$/.test(items[i])) {
             const ins = tableRows[rowIndex].querySelectorAll('input, select');
             
-            // 1. 脚質：スラッシュの後の文字、またはその文字自体
-            let sChar = items[i].replace('/', '').slice(0, 1);
+            // 1. 脚質：末尾の1文字を取得
+            const sChar = items[i].slice(-1);
             Array.from(ins[1].options).forEach((opt, idx) => {
-                if (opt.text === sChar) ins[1].selectedIndex = idx;
+                if (opt.value === sChar) ins[1].selectedIndex = idx;
             });
 
-            // 2. 選手名：脚質の「前」にある、数字ではない塊を探す
-            for (let j = i - 1; j >= 0; j--) {
-                if (isNaN(items[j]) && items[j].length >= 2) {
-                    ins[0].value = items[j];
-                    break;
-                }
+            // 2. 選手名：脚質の直前にある項目をそのまま入れる
+            if (i > 0) {
+                ins[0].value = items[i-1];
             }
 
-            // 3. 得点と勝率：脚質の「後」にある数字を探す
-            let foundNumbers = [];
+            // 3. 数値（競走得点・勝率）：脚質より後の数字を順番に拾う
+            let foundNums = [];
             for (let k = i + 1; k < i + 10 && k < items.length; k++) {
-                if (!isNaN(items[k]) && items[k] !== "") {
-                    foundNumbers.push(items[k]);
-                }
-                if (foundNumbers.length >= 5) break; // 必要以上に探さない
+                if (!isNaN(items[k])) foundNums.push(items[k]);
             }
 
-            // 競走得点（通常は小数点付き、または一番大きい数字）
-            const scoreVal = foundNumbers.find(n => n.includes('.')) || foundNumbers.find(n => parseFloat(n) > 60);
+            // 競走得点：小数点付きを最優先
+            const scoreVal = foundNums.find(n => n.includes('.')) || foundNums.find(n => parseFloat(n) > 60);
             if (scoreVal) {
                 ins[2].value = parseFloat(scoreVal).toFixed(2);
-                // 勝率は得点より後ろにある比較的小さい数字
-                const scoreIdx = foundNumbers.indexOf(scoreVal);
-                const winVal = foundNumbers.slice(scoreIdx + 1).find(n => parseFloat(n) <= 100);
+                
+                // 勝率：得点より後にある数字
+                const sIdx = foundNums.indexOf(scoreVal);
+                const winVal = foundNums.slice(sIdx + 1).find(n => parseFloat(n) <= 100);
                 if (winVal) ins[3].value = winVal;
             }
 
             rowIndex++;
-            // 今見つけたデータの分、インデックスを少し進める
-            i += 2; 
+            i += 1; // 次の選手へ
         }
     }
 
-    setTimeout(calculateScore, 150);
+    setTimeout(calculateScore, 100);
     e.preventDefault();
 }
 </script>
