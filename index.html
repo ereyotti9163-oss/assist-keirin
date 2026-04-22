@@ -2,7 +2,7 @@ A<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>アシストマジック - 22完全消去版</title>
+    <title>アシストマジック - 9車対応・鉄壁版</title>
     <style>
         body { font-family: sans-serif; background-color: #f0f2f5; padding: 20px; }
         .container { max-width: 900px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
@@ -32,6 +32,7 @@ A<!DOCTYPE html>
 </div>
 <script>
     const tbody = document.getElementById('member-list');
+    // 1〜9車までを生成
     for (let i = 1; i <= 9; i++) {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td class="car-num">${i}</td><td><input type="text"></td><td><input type="number" step="0.01" id="point-${i}" oninput="updateAll()"></td><td><input type="number" id="win-${i}" oninput="updateAll()"></td><td id="score-${i}" class="score-cell">0.00</td>`;
@@ -42,13 +43,13 @@ A<!DOCTYPE html>
         e.preventDefault();
         let text = e.clipboardData.getData('text');
         
-        // yottiさんの仮想の壁を念のため設置
+        // yottiさんのアイデア「仮想の壁」を設置
         text += " 999.99";
 
-        // 全ての数字を抽出
         const matches = text.match(/\d+\.\d+|\d+/g);
         if (!matches) return;
 
+        // 小数点（得点）の位置をすべて特定
         let pointsPos = [];
         for (let i = 0; i < matches.length; i++) {
             if (matches[i].includes('.')) pointsPos.push(i);
@@ -56,43 +57,46 @@ A<!DOCTYPE html>
 
         pointsPos.forEach((pos, index) => {
             const pIdx = index + 1;
+            // 9車分まで、かつ仮想壁に当たったら停止
             if (pIdx > 9 || matches[pos] === "999.99") return;
             
             // 1. 得点をセット
             document.getElementById(`point-${pIdx}`).value = parseFloat(matches[pos]).toFixed(2);
 
-            // 2. 勝率を特定するための「範囲制限」を厳密にします
-            let limit = pointsPos[index + 1] || matches.length;
-            let sub = matches.slice(pos + 1, limit).filter(v => !v.includes('.'));
-            
-            // 競輪jpの並び：得点(小数)の後の「勝率」は、決まり手を除外したセットの先頭付近にあります。
-            // 7番車でも「後ろから」数えず、「決まり手」分をスキップして確実に勝率を狙います。
-            if (sub.length >= 8) {
-                // 決まり手（逃・捲・差・マーク・1・2・3・着外）の後の「勝率」を特定
-                document.getElementById(`win-${pIdx}`).value = sub[sub.length - 3];
-            } else if (sub.length > 0) {
-                document.getElementById(`win-${pIdx}`).value = sub[0];
+            // 2. 勝率を特定（絶対位置ルール）
+            // 競輪jpの表構造：得点(小数)から4つ後の数字が必ず「勝率」
+            // 後ろから数えるリスクを排除し、前から数えて特定します。
+            let winVal = matches[pos + 4];
+            if (winVal && !winVal.includes('.')) {
+                document.getElementById(`win-${pIdx}`).value = winVal;
             }
+            
             updateScore(pIdx);
         });
         updateRanking();
     });
 
     function updateAll() { for(let i=1; i<=9; i++) updateScore(i); updateRanking(); }
+    
     function updateScore(idx) {
         const p = parseFloat(document.getElementById(`point-${idx}`).value) || 0;
         const w = parseFloat(document.getElementById(`win-${idx}`).value) || 0;
+        // yottiさん秘伝のスコア計算
         document.getElementById(`score-${idx}`).innerText = (p + (w * 0.5)).toFixed(2);
     }
+
     function updateRanking() {
         let res = [];
         for (let i = 1; i <= 9; i++) {
             const sc = parseFloat(document.getElementById(`score-${i}`).innerText);
             if (sc > 0) res.push({ num: i, score: sc });
         }
+        // スコアの高い順に並び替え
         res.sort((a, b) => b.score - a.score);
+        // 上位3名を表示
         for (let i = 1; i <= 3; i++) {
-            document.getElementById(`top${i}`).innerText = res[i - 1] ? res[i - 1].num + "番車" : "-";
+            const el = document.getElementById(`top${i}`);
+            el.innerText = res[i - 1] ? res[i - 1].num + "番車" : "-";
         }
     }
 </script>
