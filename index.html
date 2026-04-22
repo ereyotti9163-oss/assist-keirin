@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アシスト競輪 V3.4 - yottiエディション</title>
+    <title>アシスト競輪 V3.5 - yottiエディション</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f2f5; padding: 20px; color: #333; }
         .container { max-width: 980px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
@@ -76,38 +76,43 @@ function handlePaste(e) {
     for (let i = 0; i < items.length; i++) {
         if (rowIndex >= 9) break;
 
-        // 脚質が含まれる項目（例：神奈川/A1/逃）を起点にする
+        // 起点：スラッシュが含まれ、末尾が「逃・両・追」の項目を探す
         if (items[i].includes('/') && /[逃両追]$/.test(items[i])) {
             const ins = tableRows[rowIndex].querySelectorAll('input, select');
             
-            // 1. 脚質
+            // 1. 脚質：末尾の文字をセット
             const styleChar = items[i].slice(-1);
             Array.from(ins[1].options).forEach((opt, idx) => {
                 if (opt.value === styleChar) ins[1].selectedIndex = idx;
             });
 
-            // 2. 選手名（脚質から遡って、車番の直後までを拾う）
+            // 2. 選手名：車番（数字）の次から脚質の前までを結合
             let nameParts = [];
             for (let j = i - 1; j >= 0; j--) {
-                if (!isNaN(items[j])) break; // 車番の数字に当たったら停止
+                if (!isNaN(items[j])) break; // 車番に当たったら終了
                 if (!items[j].includes('/') && !items[j].includes('(')) {
                     nameParts.unshift(items[j]);
                 }
             }
-            if (nameParts.length > 1) nameParts.pop(); // 都道府県を除去
+            if (nameParts.length > 1) nameParts.pop(); // 都道府県をカット
             ins[0].value = nameParts.join(' ');
 
-            // 3. 競走得点（脚質の直後にある小数点付きの数値を優先）
-            // 4. 勝率（競走得点のさらに後ろにある数値）
-            let nextItems = items.slice(i + 1, i + 8);
-            let scoreVal = nextItems.find(n => n.includes('.'));
-            
-            if (scoreVal) {
-                ins[2].value = parseFloat(scoreVal).toFixed(2);
-                let sIdx = nextItems.indexOf(scoreVal);
-                // 勝率は得点の後ろにある数字を順番に探す
-                let winVal = nextItems.slice(sIdx + 1).find(n => !isNaN(n) && parseFloat(n) <= 100);
-                if (winVal) ins[3].value = winVal;
+            // 3. 数値抽出：脚質の直後の数字リストを取得
+            let nums = [];
+            for (let k = i + 1; k < i + 10 && k < items.length; k++) {
+                if (!isNaN(items[k])) nums.push(items[k]);
+            }
+
+            // keirin.jpの並び順に準拠
+            // 項目1: 競走得点（89.41など）
+            // 項目3: 勝率（50など） ※項目2は別の統計値のため飛ばす
+            if (nums.length >= 1) {
+                ins[2].value = parseFloat(nums[0]).toFixed(2); // 競走得点
+                if (nums.length >= 3) {
+                    ins[3].value = nums[2]; // 勝率
+                } else if (nums.length === 2) {
+                    ins[3].value = nums[1]; // データが少ない場合の予備
+                }
             }
 
             rowIndex++;
