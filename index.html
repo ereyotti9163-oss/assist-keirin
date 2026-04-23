@@ -2,98 +2,169 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アシスト競輪 V3 (検証版)</title>
+    <title>アシスト競輪 V3 - 鉄壁ライン補正版</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #eef2f3; padding: 15px; color: #333; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
-        h1 { color: #2c3e50; font-size: 1.2rem; margin-bottom: 20px; text-align: center; border-bottom: 2px solid #27ae60; padding-bottom: 10px; }
-        .input-area { margin-bottom: 15px; }
-        label { display: block; font-size: 0.9rem; font-weight: bold; margin-bottom: 5px; }
-        textarea { width: 100%; border: 1px solid #ddd; border-radius: 8px; padding: 10px; box-sizing: border-box; font-size: 14px; }
-        select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 15px; }
-        button { width: 100%; background: #27ae60; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        button:hover { background: #219150; }
-        #output { margin-top: 20px; }
-        .result-row { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #eee; }
-        .rank-1 { color: #e74c3c; font-weight: bold; font-size: 1.1rem; }
+        body { font-family: sans-serif; background-color: #f0f2f5; padding: 15px; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #1a2a6c; margin-bottom: 10px; border-bottom: 2px solid #1a2a6c; padding-bottom: 10px; font-size: 1.5em; }
+        
+        /* 補正設定エリア */
+        .config-box { display: flex; gap: 10px; margin-bottom: 15px; background: #e8f5e9; padding: 10px; border-radius: 8px; border: 1px solid #c8e6c9; }
+        .config-box select { flex: 1; padding: 8px; border-radius: 4px; border: 1px solid #aaa; }
+
+        .ranking-box { display: flex; justify-content: space-around; background: #2c3e50; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+        .rank-item { flex: 1; }
+        .rank-label { font-size: 0.8em; color: #bdc3c7; }
+        .rank-value { font-size: 1.8em; font-weight: bold; color: #f1c40f; }
+        .rank-score { font-size: 0.8em; }
+
+        .info { background: #fff3cd; padding: 8px; border-radius: 6px; margin-bottom: 15px; font-size: 0.75em; border-left: 5px solid #ffa000; line-height: 1.4; }
+        
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; overflow: hidden; }
+        th { background: #1a2a6c; color: white; font-size: 0.85em; }
+        .car-num { font-size: 1.2em; font-weight: bold; }
+        input { width: 90%; padding: 5px; border: 1px solid #ccc; border-radius: 4px; text-align: center; font-size: 0.9em; }
+        .score-cell { font-size: 1.1em; font-weight: bold; color: #e74c3c; background: #fffafa; }
+        
+        /* 補正マーク表示 */
+        .bonus-mark { font-size: 0.7em; color: #27ae60; display: block; }
     </style>
 </head>
 <body>
 
-<div class="card">
+<div class="container">
     <h1>アシスト競輪 V3</h1>
-    
-    <div class="input-area">
-        <label>バンク特性を選択</label>
-        <select id="bankType">
-            <option value="1.0">通常 (400m/500m)</option>
-            <option value="1.2">333m (先行・番手有利)</option>
+
+    <div class="config-box">
+        <select id="bankType" onchange="updateAll()">
+            <option value="1.0">通常バンク (400m/500m)</option>
+            <option value="1.15">前橋など 333m (先行・番手有利)</option>
         </select>
     </div>
 
-    <div class="input-area">
-        <label>レースデータ貼り付け</label>
-        <textarea id="rawData" rows="8" placeholder="ここにデータをペーストしてください"></textarea>
+    <div class="ranking-box">
+        <div class="rank-item"><div class="rank-label">【1着候補】</div><div id="top1" class="rank-value">-</div><div id="top1-score" class="rank-score">0.00</div></div>
+        <div class="rank-item"><div class="rank-label">【2着候補】</div><div id="top2" class="rank-value">-</div><div id="top2-score" class="rank-score">0.00</div></div>
+        <div class="rank-item"><div class="rank-label">【3着候補】</div><div id="top3" class="rank-value">-</div><div id="top3-score" class="rank-score">0.00</div></div>
     </div>
 
-    <button onclick="analyzeRace()">分析実行</button>
+    <div class="info">
+        <strong>【V3 強化ポイント】</strong><br>
+        1. バンク選択で333m時の先行勢を強化<br>
+        2. メモ欄に「番」や「マ」があれば番手補正(1.05倍)を自動適用
+    </div>
 
-    <div id="output"></div>
+    <table>
+        <thead><tr><th style="width:40px;">車</th><th>メモ(脚質)</th><th style="width:80px;">得点</th><th style="width:60px;">勝率</th><th>最終スコア</th></tr></thead>
+        <tbody id="member-list"></tbody>
+    </table>
 </div>
 
 <script>
-function analyzeRace() {
-    const data = document.getElementById('rawData').value;
-    const bankBonus = parseFloat(document.getElementById('bankType').value);
-    const output = document.getElementById('output');
-    
-    if(!data) {
-        alert("データを入力してください");
-        return;
+    const tbody = document.getElementById('member-list');
+    for (let i = 1; i <= 9; i++) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="car-num">${i}</td>
+            <td><input type="text" id="name-${i}" placeholder="逃・番・マ" oninput="updateAll()"></td>
+            <td><input type="number" step="0.01" id="point-${i}" oninput="updateAll()"></td>
+            <td><input type="number" id="win-${i}" oninput="updateAll()"></td>
+            <td class="score-cell"><span id="score-${i}">0.00</span><span id="mark-${i}" class="bonus-mark"></span></td>
+        `;
+        tbody.appendChild(tr);
     }
 
-    // --- ここに解析ロジックを記述 ---
-    // yottiさんの現在のパース処理をここに移植します
-    // 以下は「番手補正」を加えたサンプルロジックです
-    
-    let lines = data.split('\n');
-    let results = [];
+    // yottiさんの鉄壁パースロジックを継承
+    document.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const text = e.clipboardData.getData('text');
+        
+        // メモ（脚質）欄への流し込み（もしテキストに逃・捲・差・マが含まれていれば）
+        const rows = text.split('\n');
+        
+        const matches = text.match(/\d+\.\d+|\d+/g);
+        if (!matches) return;
 
-    // 仮の簡易解析ループ
-    lines.forEach((line, index) => {
-        if(line.trim() === "") return;
-        
-        // 仮のスコア抽出（yottiさんの既存コードに合わせて調整が必要）
-        let baseScore = Math.random() * 20 + 80; 
-        
-        // 【新ロジック】番手ならスコアアップ
-        // もしデータ内に「逃」や「番」の文字があれば判定
-        let finalScore = baseScore;
-        if(line.includes("番")) {
-            finalScore *= 1.05; // 番手なら5%加点
-        }
-        
-        // 【新ロジック】333バンクなら先行・番手をさらに強化
-        if(bankBonus > 1.0 && (line.includes("逃") || line.includes("番"))) {
-            finalScore *= bankBonus;
-        }
+        let scores = [];
+        for (let i = 0; i < matches.length; i++) if (matches[i].includes('.')) scores.push(i);
 
-        results.push({car: index + 1, score: finalScore.toFixed(2)});
+        scores.forEach((pos, index) => {
+            const pIdx = index + 1;
+            if (pIdx > 9) return;
+
+            // 競走得点
+            document.getElementById(`point-${pIdx}`).value = parseFloat(matches[pos]).toFixed(2);
+
+            // 勝率抽出（鉄壁ロジック）
+            let limit = scores[index + 1] || matches.length;
+            let playerNumbers = matches.slice(pos + 1, limit).filter(v => !v.includes('.'));
+            
+            if (playerNumbers.length >= 3) {
+                document.getElementById(`win-${pIdx}`).value = playerNumbers[playerNumbers.length - 3];
+            } else if (playerNumbers.length > 0) {
+                document.getElementById(`win-${pIdx}`).value = playerNumbers[0];
+            }
+
+            // 【追加】もし貼り付けテキストの各行に「逃・番・マ・差」があればメモ欄を埋める
+            // (簡易的な判定ですが、手入力の手間を減らします)
+            const targetRow = rows.find(r => r.includes(matches[pos]));
+            if(targetRow) {
+                const memoMap = ["逃", "番", "マ", "差", "捲"];
+                memoMap.forEach(m => { if(targetRow.includes(m)) document.getElementById(`name-${pIdx}`).value += m; });
+            }
+        });
+        updateAll();
     });
 
-    // スコア順にソート
-    results.sort((a, b) => b.score - a.score);
+    function updateAll() { for(let i=1; i<=9; i++) updateScore(i); updateRanking(); }
 
-    // 結果表示
-    let html = "<strong>【分析順位】</strong>";
-    results.forEach((r, i) => {
-        let rankClass = (i === 0) ? "rank-1" : "";
-        html += `<div class="result-row ${rankClass}"><span>${i+1}位: ${r.car}番車</span><span>${r.score}</span></div>`;
-    });
-    
-    output.innerHTML = html;
-}
+    function updateScore(idx) {
+        const p = parseFloat(document.getElementById(`point-${idx}`).value) || 0;
+        const w = parseFloat(document.getElementById(`win-${idx}`).value) || 0;
+        const memo = document.getElementById(`name-${idx}`).value;
+        const bank = parseFloat(document.getElementById('bankType').value);
+        const mark = document.getElementById(`mark-${idx}`);
+
+        // 基本スコア計算
+        let base = p + (w * 0.5);
+        let multiplier = 1.0;
+
+        // 【新】番手・マーク補正 (昨日の前橋10Rのような番手選手への評価)
+        if (memo.includes("番") || memo.includes("マ") || memo.includes("追")) {
+            multiplier *= 1.05; 
+        }
+
+        // 【新】333mバンク × 先行・番手補正
+        if (bank > 1.0 && (memo.includes("逃") || memo.includes("先") || memo.includes("番") || memo.includes("マ"))) {
+            multiplier *= bank;
+            mark.innerText = "★333補正";
+        } else {
+            mark.innerText = "";
+        }
+
+        document.getElementById(`score-${idx}`).innerText = (base * multiplier).toFixed(2);
+    }
+
+    function updateRanking() {
+        let res = [];
+        for (let i = 1; i <= 9; i++) {
+            const sc = parseFloat(document.getElementById(`score-${i}`).innerText);
+            if (sc > 0) res.push({ num: i, score: sc });
+        }
+        res.sort((a, b) => b.score - a.score);
+        for (let i = 1; i <= 3; i++) {
+            const val = document.getElementById(`top${i}`);
+            const sc = document.getElementById(`top${i}-score`);
+            if (res[i - 1]) { 
+                val.innerText = res[i - 1].num + "番車"; 
+                sc.innerText = res[i - 1].score.toFixed(2); 
+            } else { 
+                val.innerText = "-"; 
+                sc.innerText = "0.00"; 
+            }
+        }
+    }
 </script>
 
 </body>
