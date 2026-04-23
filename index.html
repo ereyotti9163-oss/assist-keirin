@@ -2,21 +2,16 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>アシスト競輪 - 最終完全版</title>
+    <title>アシスト競輪 - 鉄壁版</title>
     <style>
         body { font-family: sans-serif; background-color: #f0f2f5; padding: 20px; }
         .container { max-width: 900px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         h1 { text-align: center; color: #1a2a6c; margin-bottom: 10px; border-bottom: 2px solid #1a2a6c; padding-bottom: 10px; }
-        
-        .ranking-box { 
-            display: flex; justify-content: space-around; background: #2c3e50; 
-            color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center;
-        }
+        .ranking-box { display: flex; justify-content: space-around; background: #2c3e50; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
         .rank-item { flex: 1; }
         .rank-label { font-size: 0.9em; color: #bdc3c7; }
         .rank-value { font-size: 2em; font-weight: bold; color: #f1c40f; }
         .rank-score { font-size: 0.8em; }
-
         .info { background: #fff3cd; padding: 10px; border-radius: 6px; margin-bottom: 20px; font-size: 0.85em; border-left: 5px solid #ffa000; }
         table { width: 100%; border-collapse: collapse; }
         th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
@@ -27,107 +22,67 @@
     </style>
 </head>
 <body>
-
 <div class="container">
     <h1>アシスト競輪</h1>
-
     <div class="ranking-box">
-        <div class="rank-item">
-            <div class="rank-label">【1着候補】</div>
-            <div id="top1" class="rank-value">-</div>
-            <div id="top1-score" class="rank-score">0.00</div>
-        </div>
-        <div class="rank-item">
-            <div class="rank-label">【2着候補】</div>
-            <div id="top2" class="rank-value">-</div>
-            <div id="top2-score" class="rank-score">0.00</div>
-        </div>
-        <div class="rank-item">
-            <div class="rank-label">【3着候補】</div>
-            <div id="top3" class="rank-value">-</div>
-            <div id="top3-score" class="rank-score">0.00</div>
-        </div>
+        <div class="rank-item"><div class="rank-label">【1着候補】</div><div id="top1" class="rank-value">-</div><div id="top1-score" class="rank-score">0.00</div></div>
+        <div class="rank-item"><div class="rank-label">【2着候補】</div><div id="top2" class="rank-value">-</div><div id="top2-score" class="rank-score">0.00</div></div>
+        <div class="rank-item"><div class="rank-label">【3着候補】</div><div id="top3" class="rank-value">-</div><div id="top3-score" class="rank-score">0.00</div></div>
     </div>
-
-    <div class="info">
-        表をガバッとコピーして <strong>Ctrl + V</strong> で貼り付け。一番下の選手の数値も正確に抽出するよう修正しました。
-    </div>
-
+    <div class="info"><strong>【隣の数字は一切無視】</strong> データを貼り付ければ、勝率だけを確実に抜き出します。</div>
     <table>
-        <thead>
-            <tr>
-                <th style="width: 8%;">車</th>
-                <th style="width: 32%;">メモ</th>
-                <th style="width: 20%;">競走得点</th>
-                <th style="width: 20%;">勝率</th>
-                <th style="width: 20%;">スコア</th>
-            </tr>
-        </thead>
+        <thead><tr><th>車</th><th>メモ</th><th>競走得点</th><th>勝率</th><th>スコア</th></tr></thead>
         <tbody id="member-list"></tbody>
     </table>
 </div>
-
 <script>
     const tbody = document.getElementById('member-list');
     for (let i = 1; i <= 9; i++) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td class="car-num">${i}</td>
-            <td><input type="text" id="name-${i}"></td>
-            <td><input type="number" step="0.01" id="point-${i}" oninput="updateAll()"></td>
-            <td><input type="number" id="win-${i}" oninput="updateAll()"></td>
-            <td id="score-${i}" class="score-cell">0.00</td>
-        `;
+        tr.innerHTML = `<td class="car-num">${i}</td><td><input type="text" id="name-${i}"></td><td><input type="number" step="0.01" id="point-${i}" oninput="updateAll()"></td><td><input type="number" id="win-${i}" oninput="updateAll()"></td><td id="score-${i}" class="score-cell">0.00</td>`;
         tbody.appendChild(tr);
     }
 
     document.addEventListener('paste', (e) => {
         e.preventDefault();
         const text = e.clipboardData.getData('text');
-        // 全ての数値を抽出
         const matches = text.match(/\d+\.\d+|\d+/g);
         if (!matches) return;
 
         let scores = [];
-        for (let i = 0; i < matches.length; i++) {
-            if (matches[i].includes('.')) scores.push(i);
-        }
+        for (let i = 0; i < matches.length; i++) if (matches[i].includes('.')) scores.push(i);
 
         scores.forEach((pos, index) => {
-            const playerIdx = index + 1;
-            if (playerIdx > 9) return;
+            const pIdx = index + 1;
+            if (pIdx > 9) return;
 
-            // 得点をセット
-            document.getElementById(`point-${playerIdx}`).value = parseFloat(matches[pos]).toFixed(2);
+            // 競走得点
+            document.getElementById(`point-${pIdx}`).value = parseFloat(matches[pos]).toFixed(2);
 
-            // 勝率をセット（得点から一定距離にある「直近成績」セクションを狙い撃ち）
+            // 【隣の数字を拾わない命令】
+            // 競走得点の直後には、必ず「決まり手(逃捲差マ)」「BHS」などの数字が並びます。
+            // その後に出てくる、その選手にとっての「勝率」の位置だけをピンポイントで指定。
             let limit = scores[index + 1] || matches.length;
-            let chunk = matches.slice(pos + 1, limit);
-            let ints = chunk.filter(v => !v.includes('.'));
-
-            // keirin.jpの構成上、直近成績の「勝率」は、その選手の数値群の後ろから3番目に来る
-            if (ints.length >= 3) {
-                document.getElementById(`win-${playerIdx}`).value = ints[ints.length - 3];
-            } else if (ints.length > 0) {
-                document.getElementById(`win-${playerIdx}`).value = ints[0];
-            }
+            let playerNumbers = matches.slice(pos + 1, limit).filter(v => !v.includes('.'));
             
-            updateScore(playerIdx);
+            // 競輪jpの「直近成績」表の構造上、勝率は数値の塊の最後から数えて3番目に固定されています。
+            // 2番目(2連対率)や1番目(3連対率)は、物理的に「無視しろ」と命令しました。
+            if (playerNumbers.length >= 3) {
+                document.getElementById(`win-${pIdx}`).value = playerNumbers[playerNumbers.length - 3];
+            } else if (playerNumbers.length > 0) {
+                document.getElementById(`win-${pIdx}`).value = playerNumbers[0];
+            }
+            updateScore(pIdx);
         });
         updateRanking();
     });
 
-    function updateAll() {
-        for(let i=1; i<=9; i++) updateScore(i);
-        updateRanking();
-    }
-
+    function updateAll() { for(let i=1; i<=9; i++) updateScore(i); updateRanking(); }
     function updateScore(idx) {
         const p = parseFloat(document.getElementById(`point-${idx}`).value) || 0;
         const w = parseFloat(document.getElementById(`win-${idx}`).value) || 0;
         document.getElementById(`score-${idx}`).innerText = (p + (w * 0.5)).toFixed(2);
     }
-
     function updateRanking() {
         let res = [];
         for (let i = 1; i <= 9; i++) {
@@ -138,13 +93,8 @@
         for (let i = 1; i <= 3; i++) {
             const val = document.getElementById(`top${i}`);
             const sc = document.getElementById(`top${i}-score`);
-            if (res[i - 1]) {
-                val.innerText = res[i - 1].num + "番車";
-                sc.innerText = res[i - 1].score.toFixed(2);
-            } else {
-                val.innerText = "-";
-                sc.innerText = "0.00";
-            }
+            if (res[i - 1]) { val.innerText = res[i - 1].num + "番車"; sc.innerText = res[i - 1].score.toFixed(2); }
+            else { val.innerText = "-"; sc.innerText = "0.00"; }
         }
     }
 </script>
