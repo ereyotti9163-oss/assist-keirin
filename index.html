@@ -8,7 +8,6 @@
         .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         h1 { text-align: center; color: #1a2a6c; margin-bottom: 10px; border-bottom: 2px solid #1a2a6c; padding-bottom: 10px; font-size: 1.5em; }
         
-        /* 補正設定エリア */
         .config-box { display: flex; gap: 10px; margin-bottom: 15px; background: #e8f5e9; padding: 10px; border-radius: 8px; border: 1px solid #c8e6c9; }
         .config-box select { flex: 1; padding: 8px; border-radius: 4px; border: 1px solid #aaa; }
 
@@ -24,10 +23,17 @@
         th, td { border: 1px solid #ddd; padding: 8px; text-align: center; overflow: hidden; }
         th { background: #1a2a6c; color: white; font-size: 0.85em; }
         .car-num { font-size: 1.2em; font-weight: bold; }
-        input { width: 90%; padding: 5px; border: 1px solid #ccc; border-radius: 4px; text-align: center; font-size: 0.9em; }
-        .score-cell { font-size: 1.1em; font-weight: bold; color: #e74c3c; background: #fffafa; }
         
-        /* 補正マーク表示 */
+        /* ボタン選択式のスタイル */
+        .chip-container { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+        .chip { 
+            padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; 
+            font-size: 0.75em; cursor: pointer; background: #f8f9fa; user-select: none;
+        }
+        .chip.active { background: #1a2a6c; color: white; border-color: #1a2a6c; }
+
+        input[type="number"] { width: 90%; padding: 5px; border: 1px solid #ccc; border-radius: 4px; text-align: center; font-size: 0.9em; }
+        .score-cell { font-size: 1.1em; font-weight: bold; color: #e74c3c; background: #fffafa; }
         .bonus-mark { font-size: 0.7em; color: #27ae60; display: block; }
     </style>
 </head>
@@ -52,22 +58,29 @@
     <div class="info">
         <strong>【V3 強化ポイント】</strong><br>
         1. バンク選択で333m時の先行勢を強化<br>
-        2. メモ欄に「番」や「マ」があれば番手補正(1.05倍)を自動適用
+        2. 「番」や「マ」を選択すれば番手補正(1.05倍)を自動適用
     </div>
 
     <table>
-        <thead><tr><th style="width:40px;">車</th><th>メモ(脚質)</th><th style="width:80px;">得点</th><th style="width:60px;">勝率</th><th>最終スコア</th></tr></thead>
+        <thead><tr><th style="width:40px;">車</th><th>メモ(脚質選択)</th><th style="width:80px;">得点</th><th style="width:60px;">勝率</th><th>最終スコア</th></tr></thead>
         <tbody id="member-list"></tbody>
     </table>
 </div>
 
 <script>
     const tbody = document.getElementById('member-list');
+    const memoOptions = ["逃", "番", "マ", "差", "捲"];
+
     for (let i = 1; i <= 9; i++) {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td class="car-num">${i}</td>
-            <td><input type="text" id="name-${i}" placeholder="逃・番・マ" oninput="updateAll()"></td>
+            <td>
+                <div class="chip-container" id="chips-${i}">
+                    ${memoOptions.map(opt => `<span class="chip" onclick="toggleChip(${i}, '${opt}')">${opt}</span>`).join('')}
+                </div>
+                <input type="hidden" id="name-${i}" value="">
+            </td>
             <td><input type="number" step="0.01" id="point-${i}" oninput="updateAll()"></td>
             <td><input type="number" id="win-${i}" oninput="updateAll()"></td>
             <td class="score-cell"><span id="score-${i}">0.00</span><span id="mark-${i}" class="bonus-mark"></span></td>
@@ -75,14 +88,40 @@
         tbody.appendChild(tr);
     }
 
-    // yottiさんの鉄壁パースロジックを継承
+    // チップの選択状態を切り替える関数
+    function toggleChip(idx, val) {
+        const container = document.getElementById(`chips-${idx}`);
+        const chips = container.getElementsByClassName('chip');
+        const hiddenInput = document.getElementById(`name-${idx}`);
+        
+        let currentValues = hiddenInput.value ? hiddenInput.value.split(',') : [];
+
+        if (currentValues.includes(val)) {
+            // すでに選択されていれば解除
+            currentValues = currentValues.filter(v => v !== val);
+        } else {
+            // 未選択なら追加
+            currentValues.push(val);
+        }
+
+        hiddenInput.value = currentValues.join(',');
+
+        // 見た目の更新
+        Array.from(chips).forEach(chip => {
+            if (currentValues.includes(chip.innerText)) {
+                chip.classList.add('active');
+            } else {
+                chip.classList.remove('active');
+            }
+        });
+
+        updateAll();
+    }
+
     document.addEventListener('paste', (e) => {
         e.preventDefault();
         const text = e.clipboardData.getData('text');
-        
-        // メモ（脚質）欄への流し込み（もしテキストに逃・捲・差・マが含まれていれば）
         const rows = text.split('\n');
-        
         const matches = text.match(/\d+\.\d+|\d+/g);
         if (!matches) return;
 
@@ -93,10 +132,8 @@
             const pIdx = index + 1;
             if (pIdx > 9) return;
 
-            // 競走得点
             document.getElementById(`point-${pIdx}`).value = parseFloat(matches[pos]).toFixed(2);
 
-            // 勝率抽出（鉄壁ロジック）
             let limit = scores[index + 1] || matches.length;
             let playerNumbers = matches.slice(pos + 1, limit).filter(v => !v.includes('.'));
             
@@ -106,12 +143,18 @@
                 document.getElementById(`win-${pIdx}`).value = playerNumbers[0];
             }
 
-            // 【追加】もし貼り付けテキストの各行に「逃・番・マ・差」があればメモ欄を埋める
-            // (簡易的な判定ですが、手入力の手間を減らします)
+            // 貼り付け時に「逃・番・マ・差・捲」があれば自動でボタンをアクティブにする
             const targetRow = rows.find(r => r.includes(matches[pos]));
             if(targetRow) {
-                const memoMap = ["逃", "番", "マ", "差", "捲"];
-                memoMap.forEach(m => { if(targetRow.includes(m)) document.getElementById(`name-${pIdx}`).value += m; });
+                memoOptions.forEach(m => { 
+                    if(targetRow.includes(m)) {
+                        const hiddenInput = document.getElementById(`name-${pIdx}`);
+                        let vals = hiddenInput.value ? hiddenInput.value.split(',') : [];
+                        if(!vals.includes(m)) {
+                            toggleChip(pIdx, m);
+                        }
+                    } 
+                });
             }
         });
         updateAll();
@@ -122,20 +165,19 @@
     function updateScore(idx) {
         const p = parseFloat(document.getElementById(`point-${idx}`).value) || 0;
         const w = parseFloat(document.getElementById(`win-${idx}`).value) || 0;
-        const memo = document.getElementById(`name-${idx}`).value;
+        const memo = document.getElementById(`name-${idx}`).value; // カンマ区切りの文字列
         const bank = parseFloat(document.getElementById('bankType').value);
         const mark = document.getElementById(`mark-${idx}`);
 
-        // 基本スコア計算
         let base = p + (w * 0.5);
         let multiplier = 1.0;
 
-        // 【新】番手・マーク補正 (昨日の前橋10Rのような番手選手への評価)
+        // 番手・マーク補正 (追・番・マ)
         if (memo.includes("番") || memo.includes("マ") || memo.includes("追")) {
             multiplier *= 1.05; 
         }
 
-        // 【新】333mバンク × 先行・番手補正
+        // 333mバンク × 先行・番手補正
         if (bank > 1.0 && (memo.includes("逃") || memo.includes("先") || memo.includes("番") || memo.includes("マ"))) {
             multiplier *= bank;
             mark.innerText = "★333補正";
